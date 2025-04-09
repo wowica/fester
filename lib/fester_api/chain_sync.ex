@@ -9,7 +9,18 @@ defmodule FesterAPI.ChainSync do
 
   @impl true
   def handle_block(block, state) do
-    IO.puts("handle_block #{block["height"]}")
+    now = System.system_time(:millisecond)
+
+    :telemetry.execute(
+      [:fester_api, :chain_sync, :block_processed],
+      %{
+        timestamp: now,
+        block_height: block["height"]
+      },
+      %{
+        height: block["height"]
+      }
+    )
 
     FesterAPI.Indexer.add_to_index(block)
 

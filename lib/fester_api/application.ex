@@ -13,6 +13,7 @@ defmodule FesterAPI.Application do
       {DNSCluster, query: Application.get_env(:fester_api, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: FesterAPI.PubSub},
       {Finch, name: FesterAPI.Finch},
+      FesterAPI.Telemetry.State,
       {FesterAPI.Indexer, []},
       {FesterAPI.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
       FesterAPIWeb.Endpoint
@@ -21,7 +22,12 @@ defmodule FesterAPI.Application do
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: FesterAPI.Supervisor]
-    Supervisor.start_link(children, opts)
+    {:ok, sup} = Supervisor.start_link(children, opts)
+
+    # Setup telemetry after supervisor starts
+    FesterAPI.Telemetry.setup()
+
+    {:ok, sup}
   end
 
   # Tell Phoenix to update the endpoint configuration
