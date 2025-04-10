@@ -9,16 +9,11 @@ defmodule FesterAPI.ChainSync do
 
   @impl true
   def handle_block(block, state) do
-    now = System.system_time(:millisecond)
-
     :telemetry.execute(
       [:fester_api, :chain_sync, :block_processed],
       %{
-        timestamp: now,
+        timestamp: System.system_time(:millisecond),
         block_height: block["height"]
-      },
-      %{
-        height: block["height"]
       }
     )
 

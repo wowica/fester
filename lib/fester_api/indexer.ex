@@ -28,8 +28,8 @@ defmodule FesterAPI.Indexer do
     GenServer.call(pid, {:query_address, address})
   end
 
-  def handle_call({:query_address, address}, _from, state) do
-    outputs = Enum.filter(state[:index], fn {_ref, output} -> output.address == address end)
+  def handle_call({:query_address, address}, _from, %{index: index} = state) do
+    outputs = Enum.filter(index, fn {_ref, output} -> output.address == address end)
 
     assets =
       outputs
@@ -42,8 +42,8 @@ defmodule FesterAPI.Indexer do
     {:reply, assets, state}
   end
 
-  def handle_cast({:add_to_index, %{"transactions" => transactions}}, state) do
-    new_index = process_block_transactions(transactions, state.index, state.addresses)
+  def handle_cast({:add_to_index, %{"transactions" => transactions}}, %{index: index} = state) do
+    new_index = process_block_transactions(transactions, index, state.addresses)
     # IO.inspect(new_index, label: "new_index")
     {:noreply, %{state | index: new_index}}
   end

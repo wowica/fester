@@ -2,9 +2,11 @@ defmodule FesterAPI.Telemetry.State do
   use Agent
 
   def start_link(_) do
-    Agent.start_link(fn -> %{last_timestamp: nil, block_count: 0, start_timestamp: nil} end,
-      name: __MODULE__
-    )
+    initial_state = fn ->
+      %{start_timestamp: nil, last_timestamp: nil, block_count: 0}
+    end
+
+    Agent.start_link(initial_state, name: __MODULE__)
   end
 
   def get_state do

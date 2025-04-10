@@ -1,27 +1,29 @@
 defmodule FesterAPI.Telemetry do
+  alias FesterAPI.Telemetry.State
+
   def setup do
     :telemetry.attach(
       "fester-api-chain-sync-metrics",
       [:fester_api, :chain_sync, :block_processed],
-      &handle_block_processed/4,
+      &__MODULE__.handle_block_processed/4,
       nil
     )
   end
 
-  defp handle_block_processed(
-         [:fester_api, :chain_sync, :block_processed],
-         %{timestamp: now, block_height: height},
-         _metadata,
-         _config
-       ) do
+  def handle_block_processed(
+        [:fester_api, :chain_sync, :block_processed],
+        %{timestamp: now, block_height: height},
+        _metadata,
+        _config
+      ) do
     # Get current state
-    state = FesterAPI.Telemetry.State.get_state()
+    state = State.get_state()
 
     # Calculate throughput
     {new_state, instant_throughput, avg_throughput} = calculate_throughput(state, now)
 
     # Update state
-    FesterAPI.Telemetry.State.update_state(new_state)
+    State.update_state(new_state)
 
     # Print metrics
     print_metrics(instant_throughput, avg_throughput, height)
@@ -33,13 +35,6 @@ defmodule FesterAPI.Telemetry do
         # First block
         new_state = %{state | start_timestamp: now, last_timestamp: now, block_count: 1}
         {new_state, 0.0, 0.0}
-
-      is_nil(state.last_timestamp) ->
-        # Second block
-        time_diff = now - state.start_timestamp
-        instant_throughput = 1000 / time_diff
-        new_state = %{state | last_timestamp: now, block_count: 2}
-        {new_state, instant_throughput, instant_throughput}
 
       true ->
         # Subsequent blocks
