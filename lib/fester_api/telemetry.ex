@@ -39,9 +39,11 @@ defmodule FesterAPI.Telemetry do
       true ->
         # Subsequent blocks
         time_diff = now - state.last_timestamp
-        instant_throughput = 1000 / time_diff
         total_time = now - state.start_timestamp
-        avg_throughput = state.block_count * 1000 / total_time
+
+        # Handle edge cases where time_diff or total_time is zero or negative
+        instant_throughput = if time_diff > 0, do: 1000 / time_diff, else: 0.0
+        avg_throughput = if total_time > 0, do: state.block_count * 1000 / total_time, else: 0.0
 
         new_state = %{state | last_timestamp: now, block_count: state.block_count + 1}
         {new_state, instant_throughput, avg_throughput}
