@@ -1,7 +1,12 @@
 # Fester
 
-An Elixir based Cardano Indexer
+<center>
+<img src="docs/fester-logo.png" alt="Fester Logo" width="200" />
+</center>
 
-## Running
+An Elixir based Cardano Indexer.
 
-OGMIOS_URL="" iex -S mix
+⚠️ Attention:
+
+- [x] Highly experimental POC.
+- [x] Not production ready.
