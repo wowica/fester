@@ -1,4 +1,4 @@
-defmodule FesterAPI.Telemetry.State do
+defmodule Fester.Telemetry.State do
   use Agent
 
   def start_link(_) do

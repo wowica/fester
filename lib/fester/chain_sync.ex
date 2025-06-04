@@ -1,7 +1,7 @@
-defmodule FesterAPI.ChainSync do
+defmodule Fester.ChainSync do
   use Xogmios, :chain_sync
 
-  alias FesterAPI.IndexingSupervisor
+  alias Fester.IndexingSupervisor
 
   def start_link(opts) do
     initial_state = [sync_from: :origin]

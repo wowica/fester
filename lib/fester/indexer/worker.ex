@@ -1,4 +1,4 @@
-defmodule FesterAPI.Indexer.Worker do
+defmodule Fester.Indexer.Worker do
   use GenServer
 
   require Logger

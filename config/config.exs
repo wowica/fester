@@ -7,20 +7,20 @@
 # General application configuration
 import Config
 
-config :fester_api,
-  namespace: FesterAPI,
-  ecto_repos: [FesterAPI.Repo],
+config :fester,
+  namespace: Fester,
+  ecto_repos: [Fester.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configures the endpoint
-config :fester_api, FesterAPIWeb.Endpoint,
+config :fester, FesterWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [json: FesterAPIWeb.ErrorJSON],
+    formats: [json: FesterWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: FesterAPI.PubSub,
+  pubsub_server: Fester.PubSub,
   live_view: [signing_salt: "U0NrY4rp"]
 
 # Configures the mailer
@@ -30,7 +30,7 @@ config :fester_api, FesterAPIWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :fester_api, FesterAPI.Mailer, adapter: Swoosh.Adapters.Local
+config :fester, Fester.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configures Elixir's Logger
 config :logger, :console,

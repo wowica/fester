@@ -1,17 +1,17 @@
-defmodule FesterAPI.Telemetry do
-  alias FesterAPI.Telemetry.State
+defmodule Fester.Telemetry do
+  alias Fester.Telemetry.State
 
   def setup do
     :telemetry.attach(
       "fester-api-chain-sync-metrics",
-      [:fester_api, :chain_sync, :block_processed],
+      [:fester, :chain_sync, :block_processed],
       &__MODULE__.handle_block_processed/4,
       nil
     )
   end
 
   def handle_block_processed(
-        [:fester_api, :chain_sync, :block_processed],
+        [:fester, :chain_sync, :block_processed],
         %{timestamp: now, block_height: height},
         _metadata,
         _config

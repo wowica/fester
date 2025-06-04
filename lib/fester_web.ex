@@ -1,12 +1,12 @@
-defmodule FesterAPIWeb do
+defmodule FesterWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
-      use FesterAPIWeb, :controller
-      use FesterAPIWeb, :html
+      use FesterWeb, :controller
+      use FesterWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -39,9 +39,9 @@ defmodule FesterAPIWeb do
     quote do
       use Phoenix.Controller,
         formats: [:html, :json],
-        layouts: [html: FesterAPIWeb.Layouts]
+        layouts: [html: FesterWeb.Layouts]
 
-      use Gettext, backend: FesterAPIWeb.Gettext
+      use Gettext, backend: FesterWeb.Gettext
 
       import Plug.Conn
 
@@ -52,9 +52,9 @@ defmodule FesterAPIWeb do
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
-        endpoint: FesterAPIWeb.Endpoint,
-        router: FesterAPIWeb.Router,
-        statics: FesterAPIWeb.static_paths()
+        endpoint: FesterWeb.Endpoint,
+        router: FesterWeb.Router,
+        statics: FesterWeb.static_paths()
     end
   end
 

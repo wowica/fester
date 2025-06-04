@@ -1,4 +1,4 @@
-defmodule FesterAPI.Application do
+defmodule Fester.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
@@ -8,24 +8,24 @@ defmodule FesterAPI.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      FesterAPIWeb.Telemetry,
-      FesterAPI.Repo,
-      {DNSCluster, query: Application.get_env(:fester_api, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: FesterAPI.PubSub},
-      {Finch, name: FesterAPI.Finch},
-      # FesterAPI.Telemetry.State,
-      FesterAPI.IndexingSupervisor,
-      {FesterAPI.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
-      FesterAPIWeb.Endpoint
+      FesterWeb.Telemetry,
+      Fester.Repo,
+      {DNSCluster, query: Application.get_env(:fester, :dns_cluster_query) || :ignore},
+      {Phoenix.PubSub, name: Fester.PubSub},
+      {Finch, name: Fester.Finch},
+      # Fester.Telemetry.State,
+      Fester.IndexingSupervisor,
+      {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
+      FesterWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: FesterAPI.Supervisor]
+    opts = [strategy: :one_for_one, name: Fester.Supervisor]
     {:ok, sup} = Supervisor.start_link(children, opts)
 
     # Setup telemetry after supervisor starts
-    FesterAPI.Telemetry.setup()
+    Fester.Telemetry.setup()
 
     {:ok, sup}
   end
@@ -34,7 +34,7 @@ defmodule FesterAPI.Application do
   # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
-    FesterAPIWeb.Endpoint.config_change(changed, removed)
+    FesterWeb.Endpoint.config_change(changed, removed)
     :ok
   end
 end

@@ -1,4 +1,4 @@
-defmodule FesterAPI.DataCase do
+defmodule Fester.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule FesterAPI.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use FesterAPI.DataCase, async: true`, although
+  by setting `use Fester.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -18,17 +18,17 @@ defmodule FesterAPI.DataCase do
 
   using do
     quote do
-      alias FesterAPI.Repo
+      alias Fester.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import FesterAPI.DataCase
+      import Fester.DataCase
     end
   end
 
   setup tags do
-    FesterAPI.DataCase.setup_sandbox(tags)
+    Fester.DataCase.setup_sandbox(tags)
     :ok
   end
 
@@ -36,7 +36,7 @@ defmodule FesterAPI.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(FesterAPI.Repo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Fester.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 

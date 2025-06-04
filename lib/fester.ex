@@ -1,6 +1,6 @@
-defmodule FesterAPI do
+defmodule Fester do
   @moduledoc """
-  FesterAPI keeps the contexts that define your domain
+  Fester keeps the contexts that define your domain
   and business logic.
 
   Contexts are also responsible for managing your data, regardless

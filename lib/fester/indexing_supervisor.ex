@@ -1,4 +1,4 @@
-defmodule FesterAPI.IndexingSupervisor do
+defmodule Fester.IndexingSupervisor do
   use Supervisor
 
   @addresses [
@@ -14,7 +14,7 @@ defmodule FesterAPI.IndexingSupervisor do
   def init(_opts) do
     children =
       Enum.map(@addresses, fn address ->
-        {FesterAPI.Indexer.Worker, address: address}
+        {Fester.Indexer.Worker, address: address}
       end)
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -23,7 +23,7 @@ defmodule FesterAPI.IndexingSupervisor do
   def add_to_index(transactions) do
     for address <- @addresses do
       worker = :"#{address}"
-      FesterAPI.Indexer.Worker.add_to_index(worker, transactions)
+      Fester.Indexer.Worker.add_to_index(worker, transactions)
     end
   end
 end

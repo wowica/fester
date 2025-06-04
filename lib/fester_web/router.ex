@@ -1,16 +1,16 @@
-defmodule FesterAPIWeb.Router do
-  use FesterAPIWeb, :router
+defmodule FesterWeb.Router do
+  use FesterWeb, :router
 
   pipeline :api do
     plug :accepts, ["json"]
   end
 
-  scope "/api", FesterAPIWeb do
+  scope "/api", FesterWeb do
     pipe_through :api
   end
 
   # Enable Swoosh mailbox preview in development
-  if Application.compile_env(:fester_api, :dev_routes) do
+  if Application.compile_env(:fester, :dev_routes) do
     scope "/dev" do
       pipe_through [:fetch_session, :protect_from_forgery]
 
