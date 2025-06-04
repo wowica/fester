@@ -13,8 +13,8 @@ defmodule FesterAPI.Application do
       {DNSCluster, query: Application.get_env(:fester_api, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: FesterAPI.PubSub},
       {Finch, name: FesterAPI.Finch},
-      FesterAPI.Telemetry.State,
-      {FesterAPI.Indexer, []},
+      # FesterAPI.Telemetry.State,
+      FesterAPI.IndexingSupervisor,
       {FesterAPI.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
       FesterAPIWeb.Endpoint
     ]

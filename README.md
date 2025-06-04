@@ -1,4 +1,4 @@
-# Fester API
+# Fester
 
 An Elixir based Cardano Indexer
 
