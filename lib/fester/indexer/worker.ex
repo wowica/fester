@@ -3,13 +3,6 @@ defmodule Fester.Indexer.Worker do
 
   require Logger
 
-  @type address :: String.t()
-  @type asset_key :: String.t()
-  @type asset_amount :: integer()
-  @type assets :: %{asset_key() => asset_amount()}
-  @type output :: %{address: address(), assets: assets()}
-  @type index :: %{String.t() => output()}
-
   def child_spec(address: address) do
     %{
       id: :"#{address}",
@@ -76,6 +69,9 @@ defmodule Fester.Indexer.Worker do
     index
   end
 
+  # Inputs are UTXOs consumed by the transaction, so we
+  # remove them from the index. Removing their keys from the
+  # index map means their assets are no longer present as well.
   defp process_transaction_inputs(inputs, index) do
     Enum.reduce(inputs, index, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}},
                                   acc_index ->
@@ -84,6 +80,9 @@ defmodule Fester.Indexer.Worker do
     end)
   end
 
+  # Outputs are UTXOs created by the transaction, so we
+  # add them to the index. Adding utxos as keys to the
+  # index map and the values are the assets they hold.
   defp process_transaction_outputs(outputs, tx_id, index) do
     Enum.reduce(outputs, {index, 0}, fn output, {acc_index, idx} ->
       new_index = process_output(output, tx_id, idx, acc_index)
