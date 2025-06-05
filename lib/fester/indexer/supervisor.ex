@@ -6,7 +6,7 @@ defmodule Fester.Indexer.Supervisor do
   alias Fester.Indexer.Worker
 
   @addresses [
-    "addr_test1qq6rwtv704nmvl0t2lz2f78unjqnw7tw2dhxwmzmtqt3379m3fvnzu46a9vg27umr964njpykthk7ecxz6dvy95462rs7quuny"
+    "addr_test1qz7dlq960jgsc0td7pfy8406xyz6f9rrmtm3473c03nj9996vp3ydcd35um7n5xw60t7lmhjj7vgskmurlln0kawd6gqpuqr76"
   ]
 
   def start_link(opts) do

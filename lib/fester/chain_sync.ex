@@ -10,9 +10,23 @@ defmodule Fester.ChainSync do
   end
 
   @impl true
-  def handle_block(%{"transactions" => transactions} = _block, state) do
-    IO.puts("Hanlding new block")
-    Indexer.add_to_index(transactions)
+  def handle_block(
+        %{
+          "transactions" => transactions,
+          "slot" => slot
+        } = _block,
+        state
+      ) do
+    IO.puts("Handling new block")
+    Indexer.add_to_index(slot, transactions)
+
+    {:ok, :next_block, state}
+  end
+
+  @impl true
+  def handle_rollback(%{"slot" => slot} = _point, state) do
+    IO.puts("Handling rollback to slot #{slot}")
+    Indexer.rollback_to_slot(slot)
 
     {:ok, :next_block, state}
   end
