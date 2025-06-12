@@ -1,6 +1,6 @@
 defmodule Fester.DBIndexer do
   @moduledoc """
-  This module is responsible for updating the database index with the latest transactions.
+  This module is responsible for updating the addresses index with the latest transactions.
   """
 
   import Ecto.Query
@@ -12,10 +12,16 @@ defmodule Fester.DBIndexer do
 
   require Logger
 
+  ## Public API
+  ## The public API of this module is composed of two functions:
+  ## 1. add_to_index/2
+  ## 2. rollback_to_slot/1
+
   @doc """
   Processes transactions in a block by inserting output assets and removing consumed inputs from the database.
   Takes a slot number and list of transactions as input.
   """
+  @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
   def add_to_index(slot, transactions) do
     Repo.transaction(fn ->
       Enum.each(transactions, fn transaction ->
@@ -29,6 +35,27 @@ defmodule Fester.DBIndexer do
       end)
     end)
   end
+
+  @doc """
+  Rolls back the index to a given slot.
+  Takes a target slot number as input.
+  """
+  @spec rollback_to_slot(integer()) :: :ok | {:error, any()}
+  def rollback_to_slot(target_slot) do
+    Repo.transaction(fn ->
+      with :ok <- delete_utxos_after_slot(target_slot),
+           :ok <- restore_consumed_utxos_after_slot(target_slot),
+           :ok <- cleanup_consumed_history_after_slot(target_slot) do
+        :ok
+      else
+        {:error, reason} ->
+          Logger.error("Rollback failed to slot #{target_slot}: #{inspect(reason)}")
+          Repo.rollback("Rollback failed: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  ## Private helper functions
 
   defp process_transaction(slot, transaction) do
     %{"id" => tx_id, "inputs" => inputs, "outputs" => outputs} = transaction
@@ -157,6 +184,74 @@ defmodule Fester.DBIndexer do
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  # Rollback helper functions
+
+  defp delete_utxos_after_slot(target_slot) do
+    # Delete UTXOs after target_slot (cascade will automatically delete associated assets)
+    case from(u in Utxo, where: u.slot > ^target_slot)
+         |> Repo.delete_all() do
+      {_count, _} -> :ok
+      error -> {:error, "Failed to delete UTXOs: #{inspect(error)}"}
+    end
+  end
+
+  defp restore_consumed_utxos_after_slot(target_slot) do
+    # Find consumed UTXOs that were consumed after target_slot (for all addresses)
+    consumed_utxos_to_restore =
+      from(cu in ConsumedUtxo,
+        where: cu.consumed_at_slot > ^target_slot,
+        preload: [:consumed_utxo_assets]
+      )
+      |> Repo.all()
+
+    # Restore each consumed UTXO back to the active UTXOs table
+    consumed_utxos_to_restore
+    |> Enum.reduce_while(:ok, fn consumed_utxo, acc ->
+      utxo_attrs = %{
+        utxo_ref: consumed_utxo.utxo_ref,
+        address: consumed_utxo.address,
+        slot: consumed_utxo.original_slot
+      }
+
+      case insert_utxo(utxo_attrs) do
+        {:ok, _utxo} ->
+          # Restore the assets
+          case restore_utxo_assets(consumed_utxo.consumed_utxo_assets) do
+            :ok -> {:cont, acc}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp restore_utxo_assets(consumed_assets) do
+    consumed_assets
+    |> Enum.reduce_while(:ok, fn consumed_asset, acc ->
+      asset_attrs = %{
+        utxo_ref: consumed_asset.utxo_ref,
+        asset_key: consumed_asset.asset_key,
+        amount: consumed_asset.amount
+      }
+
+      case insert_utxo_asset(asset_attrs) do
+        {:ok, _} -> {:cont, acc}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp cleanup_consumed_history_after_slot(target_slot) do
+    # Delete consumed UTXOs after target_slot (cascade will automatically delete associated assets)
+    case from(cu in ConsumedUtxo, where: cu.consumed_at_slot > ^target_slot)
+         |> Repo.delete_all() do
+      {_count, _} -> :ok
+      error -> {:error, "Failed to delete consumed UTXOs: #{inspect(error)}"}
+    end
   end
 
   defp insert_utxo(attrs) do

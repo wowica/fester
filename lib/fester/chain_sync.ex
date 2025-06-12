@@ -35,7 +35,7 @@ defmodule Fester.ChainSync do
   @impl true
   def handle_rollback(%{"slot" => slot} = _point, state) do
     IO.puts("Handling rollback to slot #{slot}")
-    # Indexer.rollback_to_slot(slot)
+    Indexer.rollback_to_slot(slot)
 
     {:ok, :next_block, state}
   end
