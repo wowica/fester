@@ -14,7 +14,7 @@ defmodule Fester.Application do
       {Phoenix.PubSub, name: Fester.PubSub},
       {Finch, name: Fester.Finch},
       # Fester.Telemetry.State,
-      Fester.Indexer.Supervisor,
+      # Fester.Indexer.Supervisor,
       {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
       FesterWeb.Endpoint
     ]
