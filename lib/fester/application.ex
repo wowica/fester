@@ -16,6 +16,7 @@ defmodule Fester.Application do
       # Fester.Telemetry.State,
       # Fester.Indexer.Supervisor,
       {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
+      Fester.ChainSyncMetrics,
       FesterWeb.Endpoint
     ]
 

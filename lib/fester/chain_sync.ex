@@ -6,16 +6,44 @@ defmodule Fester.ChainSync do
 
   def start_link(opts) do
     initial_state = [
-      sync_from: %{
-        point: %{
-          slot: 158_167_807,
-          id: "25578b57db37c035edc4557fc641012e556ec794befab28f95e9a77629f36676"
-        }
-      }
+      is_synced?: false,
+      sync_from: :origin
     ]
 
     opts = Keyword.merge(opts, initial_state)
     Xogmios.start_chain_sync_link(__MODULE__, opts)
+  end
+
+  @impl true
+  def handle_connect(state) do
+    timestamp = System.system_time(:millisecond)
+
+    :telemetry.execute(
+      [:fester, :chain_sync, :catching_up_started],
+      %{timestamp: timestamp}
+    )
+
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_block(
+        %{
+          "transactions" => transactions,
+          "slot" => slot,
+          "current_tip" => %{"slot" => slot}
+        } = _block,
+        %{is_synced?: false} = state
+      ) do
+    timestamp = System.system_time(:millisecond)
+
+    :telemetry.execute(
+      [:fester, :chain_sync, :catching_up_finished],
+      %{timestamp: timestamp}
+    )
+
+    Indexer.add_to_index(slot, transactions)
+    {:ok, :next_block, %{state | is_synced?: true}}
   end
 
   @impl true
@@ -26,9 +54,18 @@ defmodule Fester.ChainSync do
         } = _block,
         state
       ) do
-    IO.puts("Handling new block")
+    IO.puts("Handling new block (#{slot})")
     Indexer.add_to_index(slot, transactions)
 
+    {:ok, :next_block, state}
+  end
+
+  @impl true
+  def handle_block(
+        %{"height" => 0} = _genesis_block,
+        state
+      ) do
+    IO.puts("Genesis block with no transactions")
     {:ok, :next_block, state}
   end
 

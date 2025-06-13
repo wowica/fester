@@ -44,7 +44,7 @@ defmodule Fester.MixProject do
       {:swoosh, "~> 1.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:xogmios, "~> 0.6.1"}
+      {:xogmios, github: "wowica/xogmios", ref: "1a150431a1234aba7332543d462e5fb47ee6cec2"}
     ]
   end
 
