@@ -7,7 +7,7 @@ defmodule Fester.Repo.Migrations.CreateUtxoAssets do
         null: false
 
       add :asset_key, :string, null: false
-      add :amount, :bigint, null: false
+      add :amount, :int65type, null: false
 
       timestamps()
     end

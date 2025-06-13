@@ -36,6 +36,22 @@ defmodule Fester.DBIndexer do
     end)
   end
 
+  def add_to_index_as_batch(transactions_batch) do
+    Repo.transaction(fn ->
+      Enum.each(transactions_batch, fn {slot, transactions} ->
+        Enum.each(transactions, fn transaction ->
+          case process_transaction(slot, transaction) do
+            :ok ->
+              :ok
+
+            {:error, reason} ->
+              Repo.rollback("Transaction processing failed: #{inspect(reason)}")
+          end
+        end)
+      end)
+    end)
+  end
+
   @doc """
   Rolls back the index to a given slot.
   Takes a target slot number as input.

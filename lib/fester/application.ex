@@ -9,14 +9,17 @@ defmodule Fester.Application do
   def start(_type, _args) do
     children = [
       FesterWeb.Telemetry,
+      # Extract this into a Supervisor
+      Fester.Metrics.IndexState,
+      Fester.Metrics.ChainSync,
       Fester.Repo,
       {DNSCluster, query: Application.get_env(:fester, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Fester.PubSub},
       {Finch, name: Fester.Finch},
       # Fester.Telemetry.State,
       # Fester.Indexer.Supervisor,
+      {Task.Supervisor, name: Fester.TaskSupervisor},
       {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
-      Fester.ChainSyncMetrics,
       FesterWeb.Endpoint
     ]
 
@@ -24,9 +27,6 @@ defmodule Fester.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Fester.Supervisor]
     {:ok, sup} = Supervisor.start_link(children, opts)
-
-    # Setup telemetry after supervisor starts
-    Fester.Telemetry.setup()
 
     {:ok, sup}
   end

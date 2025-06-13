@@ -4,10 +4,19 @@ defmodule Fester.ChainSync do
   # alias Fester.Indexer
   alias Fester.DBIndexer, as: Indexer
 
+  @batch_size 50
+
   def start_link(opts) do
     initial_state = [
       is_synced?: false,
-      sync_from: :origin
+      # sync_from: :conway,
+      sync_from: %{
+        point: %{
+          slot: 158_284_796,
+          id: "a9a2764497d09495176132a5fcff6ad5f2e2226b522698b2cc167a30d03bcb81"
+        }
+      },
+      batch: []
     ]
 
     opts = Keyword.merge(opts, initial_state)
@@ -42,8 +51,23 @@ defmodule Fester.ChainSync do
       %{timestamp: timestamp}
     )
 
-    Indexer.add_to_index(slot, transactions)
-    {:ok, :next_block, %{state | is_synced?: true}}
+    if state.batch do
+      # Flush the batch if not empty
+      IO.puts("Flushing batch with #{length(state.batch)} transactions")
+      updated_batch = [{slot, transactions} | state.batch]
+
+      Task.Supervisor.async(Fester.TaskSupervisor, fn ->
+        Indexer.add_to_index_as_batch(updated_batch)
+      end)
+    else
+      IO.puts("Adding new block to index")
+
+      Task.Supervisor.async(Fester.TaskSupervisor, fn ->
+        Indexer.add_to_index(slot, transactions)
+      end)
+    end
+
+    {:ok, :next_block, %{state | is_synced?: true, batch: []}}
   end
 
   @impl true
@@ -51,23 +75,50 @@ defmodule Fester.ChainSync do
         %{
           "transactions" => transactions,
           "slot" => slot
-        } = _block,
+        } = block,
         state
       ) do
-    IO.puts("Handling new block (#{slot})")
-    Indexer.add_to_index(slot, transactions)
+    process_transactions_batch = fn
+      slot, transaction, current_batch ->
+        updated_batch = [{slot, transaction} | current_batch]
 
-    {:ok, :next_block, state}
+        if length(updated_batch) >= @batch_size do
+          Task.Supervisor.async(Fester.TaskSupervisor, fn ->
+            Indexer.add_to_index_as_batch(updated_batch)
+          end)
+
+          []
+        else
+          updated_batch
+        end
+    end
+
+    updated_batch = process_transactions_batch.(slot, transactions, state.batch)
+
+    :telemetry.execute(
+      [:fester, :chain_sync, :block_processed],
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block["height"]
+      }
+    )
+
+    {:ok, :next_block, %{state | batch: updated_batch}}
   end
 
   @impl true
-  def handle_block(
-        %{"height" => 0} = _genesis_block,
-        state
-      ) do
-    IO.puts("Genesis block with no transactions")
-    {:ok, :next_block, state}
+  def handle_block(_block, state) do
+    {:close, state}
   end
+
+  # @impl true
+  # def handle_block(
+  #       %{"height" => 0} = _genesis_block,
+  #       state
+  #     ) do
+  #   IO.puts("Genesis block with no transactions")
+  #   {:ok, :next_block, state}
+  # end
 
   @impl true
   def handle_rollback(%{"slot" => slot} = _point, state) do

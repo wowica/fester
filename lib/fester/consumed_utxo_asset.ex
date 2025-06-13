@@ -4,10 +4,12 @@ defmodule Fester.ConsumedUtxoAsset do
 
   @primary_key false
 
+  alias Fester.CardanoTypes.Int65Type
+
   schema "consumed_utxo_assets" do
     field :utxo_ref, :string, primary_key: true
     field :asset_key, :string, primary_key: true
-    field :amount, :integer
+    field :amount, Int65Type
 
     belongs_to :consumed_utxo, Fester.ConsumedUtxo,
       foreign_key: :utxo_ref,
