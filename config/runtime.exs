@@ -115,3 +115,6 @@ if config_env() == :prod do
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end
+
+# Not just in prod, but in all environments
+config :fester, Fester.Repo, pool_size: System.schedulers_online() * 2
