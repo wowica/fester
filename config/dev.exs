@@ -24,7 +24,8 @@ config :fester, FesterWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "QUkXphTkj5bEjCiE03y4/WdOQZLprfbcpwexRD6ltexLxu8z1SOo92LnUwUqGAgY",
-  watchers: []
+  watchers: [],
+  server: true
 
 # ## SSL Support
 #
