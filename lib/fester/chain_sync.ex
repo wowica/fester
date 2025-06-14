@@ -56,15 +56,11 @@ defmodule Fester.ChainSync do
       IO.puts("Flushing batch with #{length(state.batch)} transactions")
       updated_batch = [{slot, transactions} | state.batch]
 
-      Task.Supervisor.async(Fester.TaskSupervisor, fn ->
-        Indexer.add_to_index_as_batch(updated_batch)
-      end)
+      Indexer.add_to_index_as_batch(updated_batch)
     else
       IO.puts("Adding new block to index")
 
-      Task.Supervisor.async(Fester.TaskSupervisor, fn ->
-        Indexer.add_to_index(slot, transactions)
-      end)
+      Indexer.add_to_index(slot, transactions)
     end
 
     {:ok, :next_block, %{state | is_synced?: true, batch: []}}
@@ -83,9 +79,7 @@ defmodule Fester.ChainSync do
         updated_batch = [{slot, transaction} | current_batch]
 
         if length(updated_batch) >= @batch_size do
-          Task.Supervisor.async(Fester.TaskSupervisor, fn ->
-            Indexer.add_to_index_as_batch(updated_batch)
-          end)
+          Indexer.add_to_index_as_batch(updated_batch)
 
           []
         else
