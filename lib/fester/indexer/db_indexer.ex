@@ -73,8 +73,30 @@ defmodule Fester.DBIndexer do
 
   ## Private helper functions
 
+  ## When collaterals are spent, this means phase-2 validation failed and the transaction
+  ## did not spend from the contract. Only the collateral input must be processed,
+  ## and no output address in the transactionshould be receiving it.
+  defp process_transaction(slot, %{"spends" => "collaterals"} = transaction) do
+    Logger.info("Processing transaction with collaterals")
+
+    %{"collaterals" => collaterals_as_inputs} = transaction
+
+    case process_transaction_inputs(slot, collaterals_as_inputs) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to process collaterals: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
   defp process_transaction(slot, transaction) do
-    %{"id" => tx_id, "inputs" => inputs, "outputs" => outputs} = transaction
+    %{
+      "id" => tx_id,
+      "inputs" => inputs,
+      "outputs" => outputs
+    } = transaction
 
     with :ok <- process_transaction_inputs(slot, inputs),
          :ok <- process_transaction_outputs(slot, outputs, tx_id) do

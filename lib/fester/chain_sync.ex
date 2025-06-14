@@ -4,18 +4,20 @@ defmodule Fester.ChainSync do
   # alias Fester.Indexer
   alias Fester.DBIndexer, as: Indexer
 
-  @batch_size 50
+  @batch_size 100
 
   def start_link(opts) do
     initial_state = [
       is_synced?: false,
-      # sync_from: :conway,
-      sync_from: %{
-        point: %{
-          slot: 158_284_796,
-          id: "a9a2764497d09495176132a5fcff6ad5f2e2226b522698b2cc167a30d03bcb81"
-        }
-      },
+      ## Named eras only work on mainnet
+      sync_from: :conway,
+      # ## This is the mainnet point to debug collaterals spending
+      # sync_from: %{
+      #   point: %{
+      #     slot: 134_300_210,
+      #     id: "cd836ac76601d02411f16d5c4047350c03693f2c735f6bb27a0b1e37f96c666a"
+      #   }
+      # },
       batch: []
     ]
 
@@ -70,8 +72,9 @@ defmodule Fester.ChainSync do
   def handle_block(
         %{
           "transactions" => transactions,
-          "slot" => slot
-        } = block,
+          "slot" => slot,
+          "current_tip" => %{"slot" => current_tip_slot}
+        } = _block,
         state
       ) do
     process_transactions_batch = fn
@@ -80,6 +83,8 @@ defmodule Fester.ChainSync do
 
         if length(updated_batch) >= @batch_size do
           Indexer.add_to_index_as_batch(updated_batch)
+          IO.puts("Flushing batch with #{length(updated_batch)} transactions")
+          IO.puts("Progress: #{slot / current_tip_slot * 100}%")
 
           []
         else
@@ -89,13 +94,47 @@ defmodule Fester.ChainSync do
 
     updated_batch = process_transactions_batch.(slot, transactions, state.batch)
 
-    :telemetry.execute(
-      [:fester, :chain_sync, :block_processed],
-      %{
-        timestamp: System.system_time(:millisecond),
-        block_height: block["height"]
-      }
-    )
+    ## For debuggin collaterals
+    # updated_batch = []
+
+    # spends_collateral? =
+    #   Enum.any?(transactions, fn transaction ->
+    #     %{
+    #       "id" => tx_id,
+    #       "spends" => inputs_or_collaterals?
+    #     } =
+    #       transaction
+
+    #     if inputs_or_collaterals? == "inputs" do
+    #       IO.inspect("spending inputs on #{tx_id}")
+
+    #       false
+    #     else
+    #       IO.inspect("spending collaterals on #{tx_id}")
+    #       true
+    #     end
+    #   end)
+
+    # if spends_collateral? do
+    #   spends_collateral_txs =
+    #     Enum.filter(transactions, fn transaction ->
+    #       transaction["spends"] == "collaterals"
+    #     end)
+
+    #   IO.inspect(spends_collateral_txs, label: "spends_collateral_txs")
+    #   {:close, state}
+    # else
+    #   {:ok, :next_block, %{state | batch: updated_batch}}
+    # end
+
+    ## Update metrics to account for batching
+    # :telemetry.execute(
+    #   [:fester, :chain_sync, :block_processed],
+    #   %{
+    #     timestamp: System.system_time(:millisecond),
+    #     block_height: height
+    #   }
+    # )
 
     {:ok, :next_block, %{state | batch: updated_batch}}
   end
