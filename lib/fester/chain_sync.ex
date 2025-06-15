@@ -53,7 +53,7 @@ defmodule Fester.ChainSync do
       %{timestamp: timestamp}
     )
 
-    if state.batch do
+    if length(state.batch) > 0 do
       # Flush the batch if not empty
       IO.puts("Flushing batch with #{length(state.batch)} transactions")
       updated_batch = [{slot, transactions} | state.batch]
@@ -154,10 +154,22 @@ defmodule Fester.ChainSync do
   # end
 
   @impl true
-  def handle_rollback(%{"slot" => slot} = _point, state) do
+  def handle_rollback(%{"slot" => slot} = _point, %{batch: batch} = state) do
     IO.puts("Handling rollback to slot #{slot}")
-    Indexer.rollback_to_slot(slot)
 
-    {:ok, :next_block, state}
+    if length(batch) > 0 do
+      # Flush the batch if not empty. Otherwise, consumed utxos
+      # might not be accurate and the restoration might fail.
+      IO.puts("But first, flushing batch with #{length(batch)} transactions")
+
+      Indexer.add_to_index_as_batch(batch)
+      IO.puts("Flushed batch, proceeding with rollback")
+      Indexer.rollback_to_slot(slot)
+      {:ok, :next_block, %{state | batch: []}}
+    else
+      IO.puts("No batch to flush, proceeding with rollback")
+      Indexer.rollback_to_slot(slot)
+      {:ok, :next_block, state}
+    end
   end
 end
