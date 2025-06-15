@@ -19,6 +19,6 @@ defmodule Fester.Utxo do
     utxo
     |> cast(attrs, [:utxo_ref, :address, :slot])
     |> validate_required([:utxo_ref, :address, :slot])
-    |> unique_constraint(:utxo_ref)
+    |> unique_constraint(:utxo_ref, name: "utxos_pkey")
   end
 end

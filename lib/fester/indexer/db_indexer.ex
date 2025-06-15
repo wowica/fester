@@ -262,6 +262,10 @@ defmodule Fester.DBIndexer do
           end
 
         {:error, reason} ->
+          Logger.error(
+            "Failed to restore UTXO with attributes #{inspect(utxo_attrs)}: #{inspect(reason)}"
+          )
+
           {:halt, {:error, reason}}
       end
     end)
@@ -277,8 +281,15 @@ defmodule Fester.DBIndexer do
       }
 
       case insert_utxo_asset(asset_attrs) do
-        {:ok, _} -> {:cont, acc}
-        {:error, reason} -> {:halt, {:error, reason}}
+        {:ok, _} ->
+          {:cont, acc}
+
+        {:error, reason} ->
+          Logger.error(
+            "Failed to restore UTXO assets with attributes #{inspect(asset_attrs)}: #{inspect(reason)}"
+          )
+
+          {:halt, {:error, reason}}
       end
     end)
   end
