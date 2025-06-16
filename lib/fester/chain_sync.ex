@@ -4,7 +4,7 @@ defmodule Fester.ChainSync do
   # alias Fester.Indexer
   alias Fester.DBIndexer, as: Indexer
 
-  @batch_size 100
+  @batch_size 50
 
   def start_link(opts) do
     initial_state = [
@@ -35,6 +35,28 @@ defmodule Fester.ChainSync do
     )
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_block(
+        %{"height" => 0} = _genesis_block,
+        state
+      ) do
+    IO.puts("Genesis block with no transactions")
+    {:ok, :next_block, state}
+  end
+
+  def handle_block(
+        %{
+          "transactions" => transactions,
+          "slot" => slot
+        } = _block,
+        %{is_synced?: true} = state
+      ) do
+    IO.puts("Fully synced. Adding new block to index.")
+
+    Indexer.add_to_index(slot, transactions)
+    {:ok, :next_block, state}
   end
 
   @impl true
@@ -94,64 +116,8 @@ defmodule Fester.ChainSync do
 
     updated_batch = process_transactions_batch.(slot, transactions, state.batch)
 
-    ## For debuggin collaterals
-    # updated_batch = []
-
-    # spends_collateral? =
-    #   Enum.any?(transactions, fn transaction ->
-    #     %{
-    #       "id" => tx_id,
-    #       "spends" => inputs_or_collaterals?
-    #     } =
-    #       transaction
-
-    #     if inputs_or_collaterals? == "inputs" do
-    #       IO.inspect("spending inputs on #{tx_id}")
-
-    #       false
-    #     else
-    #       IO.inspect("spending collaterals on #{tx_id}")
-    #       true
-    #     end
-    #   end)
-
-    # if spends_collateral? do
-    #   spends_collateral_txs =
-    #     Enum.filter(transactions, fn transaction ->
-    #       transaction["spends"] == "collaterals"
-    #     end)
-
-    #   IO.inspect(spends_collateral_txs, label: "spends_collateral_txs")
-    #   {:close, state}
-    # else
-    #   {:ok, :next_block, %{state | batch: updated_batch}}
-    # end
-
-    ## Update metrics to account for batching
-    # :telemetry.execute(
-    #   [:fester, :chain_sync, :block_processed],
-    #   %{
-    #     timestamp: System.system_time(:millisecond),
-    #     block_height: height
-    #   }
-    # )
-
     {:ok, :next_block, %{state | batch: updated_batch}}
   end
-
-  @impl true
-  def handle_block(_block, state) do
-    {:close, state}
-  end
-
-  # @impl true
-  # def handle_block(
-  #       %{"height" => 0} = _genesis_block,
-  #       state
-  #     ) do
-  #   IO.puts("Genesis block with no transactions")
-  #   {:ok, :next_block, state}
-  # end
 
   @impl true
   def handle_rollback(%{"slot" => slot} = _point, %{batch: batch} = state) do
