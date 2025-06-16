@@ -76,15 +76,16 @@ defmodule Fester.DBIndexer do
   ## When collaterals are spent, this means phase-2 validation failed and the transaction
   ## did not spend from the contract. Only the collateral input must be processed,
   ## and no output address in the transactionshould be receiving it.
-  defp process_transaction(slot, %{"spends" => "collaterals"} = transaction) do
+  defp process_transaction(slot, %{"spends" => "collaterals", "id" => tx_id} = transaction) do
     Logger.info("Processing transaction with collaterals")
 
     %{"collaterals" => collaterals_as_inputs} = transaction
+    collateral_return_as_output = Map.get(transaction, "collateral_return", [])
 
-    case process_transaction_inputs(slot, collaterals_as_inputs) do
-      :ok ->
-        :ok
-
+    with :ok <- process_transaction_inputs(slot, collaterals_as_inputs),
+         :ok <- process_transaction_outputs(slot, [collateral_return_as_output], tx_id) do
+      :ok
+    else
       {:error, reason} ->
         Logger.error("Failed to process collaterals: #{inspect(reason)}")
         {:error, reason}
@@ -190,14 +191,12 @@ defmodule Fester.DBIndexer do
   end
 
   defp process_single_output(slot, output_ref, address, value) do
-    # Insert new UTXO using Ecto
     utxo_attrs = %{
       utxo_ref: output_ref,
       address: address,
       slot: slot
     }
 
-    # Build assets map
     assets = build_assets_map(value)
 
     with {:ok, _utxo} <- insert_utxo(utxo_attrs),
