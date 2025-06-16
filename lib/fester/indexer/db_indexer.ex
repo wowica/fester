@@ -80,10 +80,14 @@ defmodule Fester.DBIndexer do
     Logger.info("Processing transaction with collaterals")
 
     %{"collaterals" => collaterals_as_inputs} = transaction
-    collateral_return_as_output = Map.get(transaction, "collateral_return", [])
+
+    # Wrapping the collateral return in a list to make it consistent with the
+    # other calling of the process_transaction_outputs function.
+    collateral_return_as_outputs =
+      if transaction["collateral_return"], do: [transaction["collateral_return"]], else: []
 
     with :ok <- process_transaction_inputs(slot, collaterals_as_inputs),
-         :ok <- process_transaction_outputs(slot, [collateral_return_as_output], tx_id) do
+         :ok <- process_transaction_outputs(slot, collateral_return_as_outputs, tx_id) do
       :ok
     else
       {:error, reason} ->
