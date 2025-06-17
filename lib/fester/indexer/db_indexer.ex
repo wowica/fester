@@ -23,31 +23,27 @@ defmodule Fester.DBIndexer do
   """
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
   def add_to_index(slot, transactions) do
-    Repo.transaction(fn ->
+    Enum.each(transactions, fn transaction ->
+      case process_transaction(slot, transaction, _store_consumed_utxos? = true) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Repo.rollback("Transaction processing failed: #{inspect(reason)}")
+      end
+    end)
+  end
+
+  def add_to_index_as_batch(transactions_batch, store_consumed_utxos? \\ true) do
+    Enum.each(transactions_batch, fn {slot, transactions} ->
       Enum.each(transactions, fn transaction ->
-        case process_transaction(slot, transaction) do
+        case process_transaction(slot, transaction, store_consumed_utxos?) do
           :ok ->
             :ok
 
           {:error, reason} ->
             Repo.rollback("Transaction processing failed: #{inspect(reason)}")
         end
-      end)
-    end)
-  end
-
-  def add_to_index_as_batch(transactions_batch) do
-    Repo.transaction(fn ->
-      Enum.each(transactions_batch, fn {slot, transactions} ->
-        Enum.each(transactions, fn transaction ->
-          case process_transaction(slot, transaction) do
-            :ok ->
-              :ok
-
-            {:error, reason} ->
-              Repo.rollback("Transaction processing failed: #{inspect(reason)}")
-          end
-        end)
       end)
     end)
   end
@@ -76,7 +72,11 @@ defmodule Fester.DBIndexer do
   ## When collaterals are spent, this means phase-2 validation failed and the transaction
   ## did not spend from the contract. Only the collateral input must be processed,
   ## and no output address in the transactionshould be receiving it.
-  defp process_transaction(slot, %{"spends" => "collaterals", "id" => tx_id} = transaction) do
+  defp process_transaction(
+         slot,
+         %{"spends" => "collaterals", "id" => tx_id} = transaction,
+         store_consumed_utxos?
+       ) do
     Logger.info("Processing transaction with collaterals")
 
     %{"collaterals" => collaterals_as_inputs} = transaction
@@ -86,7 +86,7 @@ defmodule Fester.DBIndexer do
     collateral_return_as_outputs =
       if transaction["collateral_return"], do: [transaction["collateral_return"]], else: []
 
-    with :ok <- process_transaction_inputs(slot, collaterals_as_inputs),
+    with :ok <- process_transaction_inputs(slot, collaterals_as_inputs, store_consumed_utxos?),
          :ok <- process_transaction_outputs(slot, collateral_return_as_outputs, tx_id) do
       :ok
     else
@@ -96,14 +96,14 @@ defmodule Fester.DBIndexer do
     end
   end
 
-  defp process_transaction(slot, transaction) do
+  defp process_transaction(slot, transaction, store_consumed_utxos?) do
     %{
       "id" => tx_id,
       "inputs" => inputs,
       "outputs" => outputs
     } = transaction
 
-    with :ok <- process_transaction_inputs(slot, inputs),
+    with :ok <- process_transaction_inputs(slot, inputs, store_consumed_utxos?),
          :ok <- process_transaction_outputs(slot, outputs, tx_id) do
       :ok
     else
@@ -113,12 +113,12 @@ defmodule Fester.DBIndexer do
     end
   end
 
-  defp process_transaction_inputs(slot, inputs) do
+  defp process_transaction_inputs(slot, inputs, store_consumed_utxos?) do
     inputs
     |> Enum.reduce_while(:ok, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}}, acc ->
       input_ref = "#{tx_hash}##{idx}"
 
-      case process_single_input(slot, input_ref) do
+      case process_single_input(slot, input_ref, store_consumed_utxos?) do
         :ok ->
           {:cont, acc}
 
@@ -129,7 +129,7 @@ defmodule Fester.DBIndexer do
     end)
   end
 
-  defp process_single_input(slot, input_ref) do
+  defp process_single_input(slot, input_ref, store_consumed_utxos?) do
     case Repo.get(Utxo, input_ref) do
       nil ->
         # UTXO not in our database (doesn't belong to tracked addresses)
@@ -147,8 +147,9 @@ defmodule Fester.DBIndexer do
           consumed_at_slot: slot
         }
 
-        with {:ok, _consumed_utxo} <- insert_consumed_utxo(consumed_utxo_attrs),
-             :ok <- store_consumed_assets(utxo.utxo_assets),
+        with {:ok, _consumed_utxo} <-
+               insert_consumed_utxo(consumed_utxo_attrs, store_consumed_utxos?),
+             :ok <- store_consumed_assets(utxo.utxo_assets, store_consumed_utxos?),
              {count, _} when count > 0 <-
                from(u in Utxo, where: u.utxo_ref == ^input_ref)
                |> Repo.delete_all() do
@@ -160,7 +161,9 @@ defmodule Fester.DBIndexer do
     end
   end
 
-  defp store_consumed_assets(utxo_assets) do
+  defp store_consumed_assets(_utxo_assets, false = _store_consumed_utxos?), do: :ok
+
+  defp store_consumed_assets(utxo_assets, _store_consumed_utxos?) do
     utxo_assets
     |> Enum.reduce_while(:ok, fn utxo_asset, acc ->
       consumed_asset_attrs = %{
@@ -312,7 +315,9 @@ defmodule Fester.DBIndexer do
     |> Repo.insert()
   end
 
-  defp insert_consumed_utxo(attrs) do
+  defp insert_consumed_utxo(_attrs, false = _store_consumed_utxos?), do: {:ok, nil}
+
+  defp insert_consumed_utxo(attrs, _store_consumed_utxos?) do
     %ConsumedUtxo{}
     |> ConsumedUtxo.changeset(attrs)
     |> Repo.insert()
