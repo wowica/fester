@@ -43,7 +43,11 @@ defmodule Fester.Metrics.ChainSync do
     index_state = IndexState.get_state()
 
     # Calculate throughput
-    {new_index_state, instant_throughput, avg_throughput} = calculate_throughput(index_state, now)
+    {
+      new_index_state,
+      instant_throughput,
+      avg_throughput
+    } = calculate_throughput(index_state, now, height)
 
     # Update state
     IndexState.update_state(new_index_state)
@@ -89,24 +93,37 @@ defmodule Fester.Metrics.ChainSync do
     {:reply, duration, state}
   end
 
-  defp calculate_throughput(state, now) do
+  defp calculate_throughput(state, now, height) do
     cond do
       is_nil(state.start_timestamp) ->
         # First block
-        new_state = %{state | start_timestamp: now, last_timestamp: now, block_count: 1}
+        new_state = %{
+          state
+          | start_timestamp: now,
+            last_timestamp: now,
+            start_block_height: height,
+            current_block_height: height
+        }
+
         {new_state, 0.0, 0.0}
 
       true ->
         # Subsequent blocks
-        time_diff = now - state.last_timestamp
+        # time_diff = now - state.last_timestamp
         total_time = now - state.start_timestamp
 
         # Handle edge cases where time_diff or total_time is zero or negative
-        instant_throughput = if time_diff > 0, do: 1000 / time_diff, else: 0.0
-        avg_throughput = if total_time > 0, do: state.block_count * 1000 / total_time, else: 0.0
+        # recent_blocks_processed = height - state.current_block_height
+        total_blocks_processed = height - state.start_block_height
 
-        new_state = %{state | last_timestamp: now, block_count: state.block_count + 1}
-        {new_state, instant_throughput, avg_throughput}
+        # instant_throughput = if time_diff > 0, do: 1000 / time_diff, else: 0.0
+
+        avg_throughput =
+          if total_time > 0, do: total_blocks_processed * 1000 / total_time, else: 0.0
+
+        new_state = %{state | last_timestamp: now, current_block_height: height}
+
+        {new_state, 0.0, avg_throughput}
     end
   end
 

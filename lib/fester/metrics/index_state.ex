@@ -2,7 +2,15 @@ defmodule Fester.Metrics.IndexState do
   use Agent
 
   def start_link(_opts) do
-    Agent.start_link(fn -> %{start_timestamp: nil, last_timestamp: nil, block_count: 0} end,
+    Agent.start_link(
+      fn ->
+        %{
+          start_timestamp: nil,
+          last_timestamp: nil,
+          start_block_height: 0,
+          current_block_height: 0
+        }
+      end,
       name: __MODULE__
     )
   end
