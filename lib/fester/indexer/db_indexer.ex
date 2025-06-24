@@ -22,9 +22,9 @@ defmodule Fester.DBIndexer do
   Takes a slot number and list of transactions as input.
   """
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
-  def add_to_index(slot, transactions) do
+  def add_to_index(slot, transactions, store_consumed_utxos? \\ true) do
     Enum.each(transactions, fn transaction ->
-      case process_transaction(slot, transaction, _store_consumed_utxos? = true) do
+      case process_transaction(slot, transaction, store_consumed_utxos?) do
         :ok ->
           :ok
 

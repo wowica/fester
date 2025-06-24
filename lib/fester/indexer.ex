@@ -1,7 +1,4 @@
 defmodule Fester.Indexer do
-  alias Fester.Indexer.Worker, as: Worker
-  alias Fester.Indexer.Supervisor, as: Supervisor
-
   import Ecto.Query, warn: false
 
   alias Fester.Repo
@@ -23,6 +20,11 @@ defmodule Fester.Indexer do
   """
   def list_utxos_by_address(address) do
     from(u in Utxo, where: u.address == ^address, preload: :utxo_assets)
+    |> Repo.all()
+  end
+
+  def list_utxos_by_slot(slot) do
+    from(u in Utxo, where: u.slot == ^slot, preload: :utxo_assets)
     |> Repo.all()
   end
 
@@ -103,28 +105,5 @@ defmodule Fester.Indexer do
   """
   def delete_utxo(%Utxo{} = utxo) do
     Repo.delete(utxo)
-  end
-
-  def add_to_index(slot, transactions) do
-    for address <- Supervisor.addresses() do
-      worker = :"#{address}"
-      Worker.add_to_index(worker, slot, transactions)
-    end
-  end
-
-  def list_assets(address) when is_binary(address) do
-    worker = :"#{address}"
-    Worker.list_assets(worker)
-  end
-
-  def list_assets(address) when is_pid(address) do
-    Worker.list_assets(address)
-  end
-
-  def rollback_to_slot(slot) do
-    for address <- Supervisor.addresses() do
-      worker = :"#{address}"
-      Worker.rollback_to_slot(worker, slot)
-    end
   end
 end
