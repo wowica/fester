@@ -24,8 +24,18 @@ defmodule Fester.DBIndexer do
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
   def add_to_index(slot, transactions, store_consumed_utxos? \\ true) do
     Enum.each(transactions, fn transaction ->
+      :telemetry.execute(
+        [:fester, :db_indexer, :tx_start],
+        %{timestamp: System.system_time(:millisecond)}
+      )
+
       case process_transaction(slot, transaction, store_consumed_utxos?) do
         :ok ->
+          :telemetry.execute(
+            [:fester, :db_indexer, :tx_end],
+            %{timestamp: System.system_time(:millisecond)}
+          )
+
           :ok
 
         {:error, reason} ->

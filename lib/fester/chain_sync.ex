@@ -70,31 +70,8 @@ defmodule Fester.ChainSync do
         %{
           "transactions" => transactions,
           "slot" => slot,
-          "current_tip" => %{"slot" => slot}
-        } = _block,
-        %{is_synced?: false} = state
-      ) do
-    timestamp = System.system_time(:millisecond)
-
-    :telemetry.execute(
-      [:fester, :chain_sync, :catching_up_finished],
-      %{timestamp: timestamp}
-    )
-
-    IO.puts("Adding new block to index")
-
-    Indexer.add_to_index(slot, transactions)
-
-    {:ok, :next_block, %{state | is_synced?: true, batch: []}}
-  end
-
-  @impl true
-  def handle_block(
-        %{
-          "transactions" => transactions,
-          "slot" => slot,
           "height" => block_height,
-          "current_tip" => %{"slot" => current_tip_slot, "height" => tip_height}
+          "current_tip" => %{"slot" => _current_tip_slot, "height" => tip_height}
         } = _block,
         state
       ) do
@@ -103,7 +80,7 @@ defmodule Fester.ChainSync do
 
     Indexer.add_to_index(slot, transactions, should_store_consumed_utxos?)
 
-    IO.puts("Progress: #{slot / current_tip_slot * 100}%")
+    # IO.puts("Progress: #{slot / current_tip_slot * 100}%")
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
