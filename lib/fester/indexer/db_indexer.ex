@@ -50,6 +50,12 @@ defmodule Fester.DBIndexer do
 
   @doc """
   Rolls back the index to a given slot.
+
+  The rollback process is as follows:
+  1. Delete UTXOs created after the target slot
+  2. Restore UTXOs that were consumed after the target slot AND originally created before or at target_slot
+  3. Clean up consumed UTXO history after the target slot
+
   Takes a target slot number as input.
   """
   @spec rollback_to_slot(integer()) :: :ok | {:error, any()}
@@ -58,6 +64,7 @@ defmodule Fester.DBIndexer do
       with :ok <- delete_utxos_after_slot(target_slot),
            :ok <- restore_consumed_utxos_after_slot(target_slot),
            :ok <- cleanup_consumed_history_after_slot(target_slot) do
+        Logger.info("Successfully completed rollback to slot #{target_slot}")
         :ok
       else
         {:error, reason} ->
@@ -242,15 +249,19 @@ defmodule Fester.DBIndexer do
   end
 
   defp restore_consumed_utxos_after_slot(target_slot) do
-    # Find consumed UTXOs that were consumed after target_slot (for all addresses)
+    # Find consumed UTXOs that were consumed after target_slot AND originally created before or at target_slot
     consumed_utxos_to_restore =
       from(cu in ConsumedUtxo,
-        where: cu.consumed_at_slot > ^target_slot,
-        preload: [:consumed_utxo_assets]
+        where: cu.consumed_at_slot > ^target_slot and cu.original_slot <= ^target_slot,
+        preload: [:consumed_utxo_assets],
+        order_by: [asc: cu.original_slot]
       )
       |> Repo.all()
 
-    # Restore each consumed UTXO back to the active UTXOs table
+    Logger.info(
+      "Found #{length(consumed_utxos_to_restore)} consumed UTXOs to restore for rollback to slot #{target_slot}"
+    )
+
     consumed_utxos_to_restore
     |> Enum.reduce_while(:ok, fn consumed_utxo, acc ->
       utxo_attrs = %{
@@ -258,6 +269,10 @@ defmodule Fester.DBIndexer do
         address: consumed_utxo.address,
         slot: consumed_utxo.original_slot
       }
+
+      Logger.info(
+        "Restoring #{consumed_utxo.utxo_ref} (originally created at slot #{consumed_utxo.original_slot}, consumed at slot #{consumed_utxo.consumed_at_slot})"
+      )
 
       case insert_utxo(utxo_attrs) do
         {:ok, _utxo} ->
