@@ -18,12 +18,12 @@ defmodule Fester.Indexer do
 
   """
   def list_utxos_by_address(address) do
-    from(u in Utxo, where: u.address == ^address)
+    from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
     |> Repo.all()
   end
 
   def list_utxos_by_slot(slot) do
-    from(u in Utxo, where: u.slot == ^slot)
+    from(u in Utxo, where: u.created_at_slot == ^slot and is_nil(u.consumed_at_slot))
     |> Repo.all()
   end
 
@@ -38,7 +38,7 @@ defmodule Fester.Indexer do
   """
 
   def list_assets_by_address(address) do
-    from(u in Utxo, where: u.address == ^address)
+    from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
     |> Repo.all()
     |> Enum.reduce(%{}, &build_assets_map/2)
   end

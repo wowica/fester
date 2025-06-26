@@ -15,9 +15,9 @@ defmodule Fester.ChainSync do
     initial_state = [
       # Adjust this parameter to the network you are syncing from.
       security_param: @security_param_testnet,
-      is_synced?: false,
+      is_synced?: false
       ## Named eras only work on mainnet
-      sync_from: :conway
+      # sync_from: :conway
     ]
 
     opts = Keyword.merge(opts, initial_state)

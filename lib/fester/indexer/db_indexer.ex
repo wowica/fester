@@ -6,7 +6,6 @@ defmodule Fester.DBIndexer do
   import Ecto.Query
   alias Fester.Repo
   alias Fester.Utxo
-  alias Fester.ConsumedUtxo
 
   require Logger
 
@@ -21,32 +20,20 @@ defmodule Fester.DBIndexer do
   """
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
   def add_to_index(slot, transactions, store_consumed_utxos? \\ true) do
-    Enum.each(transactions, fn transaction ->
-      :telemetry.execute(
-        [:fester, :db_indexer, :tx_start],
-        %{timestamp: System.system_time(:millisecond)}
-      )
-
-      case process_transaction(slot, transaction, store_consumed_utxos?) do
-        :ok ->
-          :telemetry.execute(
-            [:fester, :db_indexer, :tx_end],
-            %{timestamp: System.system_time(:millisecond)}
-          )
-
-          :ok
-
-        {:error, reason} ->
-          Repo.rollback("Transaction processing failed: #{inspect(reason)}")
-      end
-    end)
-  end
-
-  def add_to_index_as_batch(transactions_batch, store_consumed_utxos? \\ true) do
-    Enum.each(transactions_batch, fn {slot, transactions} ->
+    Repo.transaction(fn ->
       Enum.each(transactions, fn transaction ->
+        :telemetry.execute(
+          [:fester, :db_indexer, :tx_start],
+          %{timestamp: System.system_time(:millisecond)}
+        )
+
         case process_transaction(slot, transaction, store_consumed_utxos?) do
           :ok ->
+            :telemetry.execute(
+              [:fester, :db_indexer, :tx_end],
+              %{timestamp: System.system_time(:millisecond)}
+            )
+
             :ok
 
           {:error, reason} ->
@@ -62,7 +49,6 @@ defmodule Fester.DBIndexer do
   The rollback process is as follows:
   1. Delete UTXOs created after the target slot
   2. Restore UTXOs that were consumed after the target slot AND originally created before or at target_slot
-  3. Clean up consumed UTXO history after the target slot
 
   Takes a target slot number as input.
   """
@@ -70,8 +56,7 @@ defmodule Fester.DBIndexer do
   def rollback_to_slot(target_slot) do
     Repo.transaction(fn ->
       with :ok <- delete_utxos_after_slot(target_slot),
-           :ok <- restore_consumed_utxos_after_slot(target_slot),
-           :ok <- cleanup_consumed_history_after_slot(target_slot) do
+           :ok <- restore_consumed_utxos_after_slot(target_slot) do
         Logger.info("Successfully completed rollback to slot #{target_slot}")
         :ok
       else
@@ -144,31 +129,25 @@ defmodule Fester.DBIndexer do
     end)
   end
 
-  defp process_single_input(slot, input_ref, store_consumed_utxos?) do
+  defp process_single_input(_slot, _input_ref, false = _store_consumed_utxos?), do: :ok
+
+  defp process_single_input(slot, input_ref, true = _store_consumed_utxos?) do
     case Repo.get(Utxo, input_ref) do
       nil ->
-        # UTXO not in our database (doesn't belong to tracked addresses)
+        # UTXO not yet tracked in the database.
+        # This can happen when sync starts at a particular
+        # point in the chain.
         :ok
 
       utxo ->
-        # Store consumed UTXO data for rollback capability
-        consumed_utxo_attrs = %{
-          utxo_ref: utxo.utxo_ref,
-          value: utxo.value,
-          address: utxo.address,
-          original_slot: utxo.slot,
-          consumed_at_slot: slot
-        }
-
-        with {:ok, _consumed_utxo} <-
-               insert_consumed_utxo(consumed_utxo_attrs, store_consumed_utxos?),
-             {count, _} when count > 0 <-
-               from(u in Utxo, where: u.utxo_ref == ^input_ref)
-               |> Repo.delete_all() do
+        # Update the UTXO to mark it as consumed
+        with {:ok, _utxo} <-
+               Utxo.changeset(utxo, %{consumed_at_slot: slot})
+               |> Repo.update() do
           :ok
         else
           {:error, reason} -> {:error, reason}
-          {0, _} -> {:error, "Failed to delete UTXO #{input_ref}"}
+          {0, _} -> {:error, "Failed to update UTXO #{input_ref}"}
         end
     end
   end
@@ -196,7 +175,7 @@ defmodule Fester.DBIndexer do
       utxo_ref: output_ref,
       address: address,
       value: value,
-      slot: slot
+      created_at_slot: slot
     }
 
     case insert_utxo(utxo_attrs) do
@@ -208,8 +187,7 @@ defmodule Fester.DBIndexer do
   # Rollback helper functions
 
   defp delete_utxos_after_slot(target_slot) do
-    # Delete UTXOs after target_slot (cascade will automatically delete associated assets)
-    case from(u in Utxo, where: u.slot > ^target_slot)
+    case from(u in Utxo, where: u.created_at_slot > ^target_slot)
          |> Repo.delete_all() do
       {_count, _} -> :ok
       error -> {:error, "Failed to delete UTXOs: #{inspect(error)}"}
@@ -217,66 +195,19 @@ defmodule Fester.DBIndexer do
   end
 
   defp restore_consumed_utxos_after_slot(target_slot) do
-    # Find consumed UTXOs that were consumed after target_slot AND originally created before or at target_slot
-    consumed_utxos_to_restore =
-      from(cu in ConsumedUtxo,
-        where: cu.consumed_at_slot > ^target_slot and cu.original_slot <= ^target_slot,
-        preload: [:consumed_utxo_assets],
-        order_by: [asc: cu.original_slot]
+    # Restored UTXOs that were consumed after target_slot AND originally created before or at target_slot
+    {count, _} =
+      from(utxo in Utxo,
+        where: utxo.consumed_at_slot > ^target_slot and utxo.created_at_slot <= ^target_slot
       )
-      |> Repo.all()
+      |> Repo.update_all(set: [consumed_at_slot: nil])
 
-    Logger.info(
-      "Found #{length(consumed_utxos_to_restore)} consumed UTXOs to restore for rollback to slot #{target_slot}"
-    )
-
-    consumed_utxos_to_restore
-    |> Enum.reduce_while(:ok, fn consumed_utxo, acc ->
-      utxo_attrs = %{
-        utxo_ref: consumed_utxo.utxo_ref,
-        address: consumed_utxo.address,
-        value: consumed_utxo.value,
-        slot: consumed_utxo.original_slot
-      }
-
-      Logger.info(
-        "Restoring #{consumed_utxo.utxo_ref} (originally created at slot #{consumed_utxo.original_slot}, consumed at slot #{consumed_utxo.consumed_at_slot})"
-      )
-
-      case insert_utxo(utxo_attrs) do
-        {:ok, _utxo} ->
-          {:cont, acc}
-
-        {:error, reason} ->
-          Logger.error(
-            "Failed to restore UTXO with attributes #{inspect(utxo_attrs)}: #{inspect(reason)}"
-          )
-
-          {:halt, {:error, reason}}
-      end
-    end)
-  end
-
-  defp cleanup_consumed_history_after_slot(target_slot) do
-    # Delete consumed UTXOs after target_slot (cascade will automatically delete associated assets)
-    case from(cu in ConsumedUtxo, where: cu.consumed_at_slot > ^target_slot)
-         |> Repo.delete_all() do
-      {_count, _} -> :ok
-      error -> {:error, "Failed to delete consumed UTXOs: #{inspect(error)}"}
-    end
+    Logger.info("Restored #{count} consumed UTXOs for rollback to slot #{target_slot}")
   end
 
   defp insert_utxo(attrs) do
     %Utxo{}
     |> Utxo.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  defp insert_consumed_utxo(_attrs, false = _store_consumed_utxos?), do: {:ok, nil}
-
-  defp insert_consumed_utxo(attrs, _store_consumed_utxos?) do
-    %ConsumedUtxo{}
-    |> ConsumedUtxo.changeset(attrs)
     |> Repo.insert()
   end
 end
