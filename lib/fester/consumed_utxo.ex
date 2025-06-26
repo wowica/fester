@@ -9,8 +9,7 @@ defmodule Fester.ConsumedUtxo do
     field :address, :string
     field :original_slot, :integer
     field :consumed_at_slot, :integer
-
-    has_many :consumed_utxo_assets, Fester.ConsumedUtxoAsset, foreign_key: :utxo_ref
+    field :value, :map
 
     timestamps()
   end
@@ -18,7 +17,7 @@ defmodule Fester.ConsumedUtxo do
   @doc false
   def changeset(consumed_utxo, attrs) do
     consumed_utxo
-    |> cast(attrs, [:utxo_ref, :address, :original_slot, :consumed_at_slot])
+    |> cast(attrs, [:utxo_ref, :address, :original_slot, :consumed_at_slot, :value])
     |> validate_required([:utxo_ref, :address, :original_slot, :consumed_at_slot])
     |> unique_constraint(:utxo_ref)
     |> validate_number(:original_slot, greater_than: 0)

@@ -3,7 +3,6 @@ defmodule Fester.Indexer do
 
   alias Fester.Repo
   alias Fester.Utxo
-  alias Fester.UtxoAsset
 
   @moduledoc """
   The Indexer context.
@@ -19,12 +18,12 @@ defmodule Fester.Indexer do
 
   """
   def list_utxos_by_address(address) do
-    from(u in Utxo, where: u.address == ^address, preload: :utxo_assets)
+    from(u in Utxo, where: u.address == ^address)
     |> Repo.all()
   end
 
   def list_utxos_by_slot(slot) do
-    from(u in Utxo, where: u.slot == ^slot, preload: :utxo_assets)
+    from(u in Utxo, where: u.slot == ^slot)
     |> Repo.all()
   end
 
@@ -37,73 +36,22 @@ defmodule Fester.Indexer do
       %{"policy_id.asset_name" => 1000, ...}
 
   """
+
   def list_assets_by_address(address) do
-    query =
-      from ua in UtxoAsset,
-        join: u in Utxo,
-        on: ua.utxo_ref == u.utxo_ref,
-        where: u.address == ^address,
-        group_by: ua.asset_key,
-        select: {ua.asset_key, sum(ua.amount)}
-
-    query
+    from(u in Utxo, where: u.address == ^address)
     |> Repo.all()
-    |> Enum.into(%{})
+    |> Enum.reduce(%{}, &build_assets_map/2)
   end
 
-  @doc """
-  Gets a single utxo by reference.
-
-  Raises `Ecto.NoResultsError` if the Utxo does not exist.
-
-  ## Examples
-
-      iex> get_utxo!("tx_hash#0")
-      %Utxo{}
-
-      iex> get_utxo!("nonexistent")
-      ** (Ecto.NoResultsError)
-
-  """
-  def get_utxo!(utxo_ref) do
-    Utxo
-    |> preload(:utxo_assets)
-    |> Repo.get!(utxo_ref)
+  defp build_assets_map(%Utxo{value: value}, acc) do
+    Enum.reduce(value, acc, fn {policy_id, assets}, acc ->
+      Enum.reduce(assets, acc, fn {asset_name, amount}, inner_acc ->
+        asset_key = build_asset_key(policy_id, asset_name)
+        Map.update(inner_acc, asset_key, amount, &(&1 + amount))
+      end)
+    end)
   end
 
-  @doc """
-  Gets a single utxo by reference.
-
-  Returns nil if the Utxo does not exist.
-
-  ## Examples
-
-      iex> get_utxo("tx_hash#0")
-      %Utxo{}
-
-      iex> get_utxo("nonexistent")
-      nil
-
-  """
-  def get_utxo(utxo_ref) do
-    Utxo
-    |> preload(:utxo_assets)
-    |> Repo.get(utxo_ref)
-  end
-
-  @doc """
-  Deletes a Utxo and its associated assets.
-
-  ## Examples
-
-      iex> delete_utxo(utxo)
-      {:ok, %Utxo{}}
-
-      iex> delete_utxo(utxo)
-      {:error, %Ecto.Changeset{}}
-
-  """
-  def delete_utxo(%Utxo{} = utxo) do
-    Repo.delete(utxo)
-  end
+  defp build_asset_key(policy_id, ""), do: policy_id
+  defp build_asset_key(policy_id, asset_name), do: "#{policy_id}.#{asset_name}"
 end

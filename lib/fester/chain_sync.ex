@@ -17,14 +17,7 @@ defmodule Fester.ChainSync do
       security_param: @security_param_testnet,
       is_synced?: false,
       ## Named eras only work on mainnet
-      # sync_from: :conway,
-
-      sync_from: %{
-        point: %{
-          slot: 75_587_151,
-          id: "caefbb21e1d2618647bd5ab9a6674574dd5948e1294e2e5526569b56b200812b"
-        }
-      }
+      sync_from: :conway
     ]
 
     opts = Keyword.merge(opts, initial_state)
@@ -71,7 +64,7 @@ defmodule Fester.ChainSync do
           "transactions" => transactions,
           "slot" => slot,
           "height" => block_height,
-          "current_tip" => %{"slot" => _current_tip_slot, "height" => tip_height}
+          "current_tip" => %{"slot" => current_tip_slot, "height" => tip_height}
         } = _block,
         state
       ) do

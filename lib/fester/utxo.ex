@@ -8,8 +8,7 @@ defmodule Fester.Utxo do
   schema "utxos" do
     field :address, :string
     field :slot, :integer
-
-    has_many :utxo_assets, Fester.UtxoAsset, foreign_key: :utxo_ref
+    field :value, :map
 
     timestamps()
   end
@@ -17,7 +16,7 @@ defmodule Fester.Utxo do
   @doc false
   def changeset(utxo, attrs) do
     utxo
-    |> cast(attrs, [:utxo_ref, :address, :slot])
+    |> cast(attrs, [:utxo_ref, :address, :slot, :value])
     |> validate_required([:utxo_ref, :address, :slot])
     |> unique_constraint(:utxo_ref, name: "utxos_pkey")
   end

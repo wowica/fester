@@ -6,9 +6,7 @@ defmodule Fester.DBIndexer do
   import Ecto.Query
   alias Fester.Repo
   alias Fester.Utxo
-  alias Fester.UtxoAsset
   alias Fester.ConsumedUtxo
-  alias Fester.ConsumedUtxoAsset
 
   require Logger
 
@@ -153,12 +151,10 @@ defmodule Fester.DBIndexer do
         :ok
 
       utxo ->
-        # Preload assets upfront to avoid N+1 queries
-        utxo = Repo.preload(utxo, :utxo_assets)
-
         # Store consumed UTXO data for rollback capability
         consumed_utxo_attrs = %{
           utxo_ref: utxo.utxo_ref,
+          value: utxo.value,
           address: utxo.address,
           original_slot: utxo.slot,
           consumed_at_slot: slot
@@ -166,7 +162,6 @@ defmodule Fester.DBIndexer do
 
         with {:ok, _consumed_utxo} <-
                insert_consumed_utxo(consumed_utxo_attrs, store_consumed_utxos?),
-             :ok <- store_consumed_assets(utxo.utxo_assets, store_consumed_utxos?),
              {count, _} when count > 0 <-
                from(u in Utxo, where: u.utxo_ref == ^input_ref)
                |> Repo.delete_all() do
@@ -176,24 +171,6 @@ defmodule Fester.DBIndexer do
           {0, _} -> {:error, "Failed to delete UTXO #{input_ref}"}
         end
     end
-  end
-
-  defp store_consumed_assets(_utxo_assets, false = _store_consumed_utxos?), do: :ok
-
-  defp store_consumed_assets(utxo_assets, _store_consumed_utxos?) do
-    utxo_assets
-    |> Enum.reduce_while(:ok, fn utxo_asset, acc ->
-      consumed_asset_attrs = %{
-        utxo_ref: utxo_asset.utxo_ref,
-        asset_key: utxo_asset.asset_key,
-        amount: utxo_asset.amount
-      }
-
-      case insert_consumed_utxo_asset(consumed_asset_attrs) do
-        {:ok, _} -> {:cont, acc}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
   end
 
   defp process_transaction_outputs(slot, outputs, tx_id) do
@@ -218,33 +195,14 @@ defmodule Fester.DBIndexer do
     utxo_attrs = %{
       utxo_ref: output_ref,
       address: address,
+      value: value,
       slot: slot
     }
 
-    assets = build_assets_map(value)
-
-    with {:ok, _utxo} <- insert_utxo(utxo_attrs),
-         :ok <- store_utxo_assets(output_ref, assets) do
-      :ok
-    else
+    case insert_utxo(utxo_attrs) do
+      {:ok, _utxo} -> :ok
       {:error, reason} -> {:error, reason}
     end
-  end
-
-  defp store_utxo_assets(output_ref, assets) do
-    assets
-    |> Enum.reduce_while(:ok, fn {asset_key, amount}, acc ->
-      asset_attrs = %{
-        utxo_ref: output_ref,
-        asset_key: asset_key,
-        amount: amount
-      }
-
-      case insert_utxo_asset(asset_attrs) do
-        {:ok, _} -> {:cont, acc}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
   end
 
   # Rollback helper functions
@@ -277,6 +235,7 @@ defmodule Fester.DBIndexer do
       utxo_attrs = %{
         utxo_ref: consumed_utxo.utxo_ref,
         address: consumed_utxo.address,
+        value: consumed_utxo.value,
         slot: consumed_utxo.original_slot
       }
 
@@ -286,38 +245,11 @@ defmodule Fester.DBIndexer do
 
       case insert_utxo(utxo_attrs) do
         {:ok, _utxo} ->
-          # Restore the assets
-          case restore_utxo_assets(consumed_utxo.consumed_utxo_assets) do
-            :ok -> {:cont, acc}
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        {:error, reason} ->
-          Logger.error(
-            "Failed to restore UTXO with attributes #{inspect(utxo_attrs)}: #{inspect(reason)}"
-          )
-
-          {:halt, {:error, reason}}
-      end
-    end)
-  end
-
-  defp restore_utxo_assets(consumed_assets) do
-    consumed_assets
-    |> Enum.reduce_while(:ok, fn consumed_asset, acc ->
-      asset_attrs = %{
-        utxo_ref: consumed_asset.utxo_ref,
-        asset_key: consumed_asset.asset_key,
-        amount: consumed_asset.amount
-      }
-
-      case insert_utxo_asset(asset_attrs) do
-        {:ok, _} ->
           {:cont, acc}
 
         {:error, reason} ->
           Logger.error(
-            "Failed to restore UTXO assets with attributes #{inspect(asset_attrs)}: #{inspect(reason)}"
+            "Failed to restore UTXO with attributes #{inspect(utxo_attrs)}: #{inspect(reason)}"
           )
 
           {:halt, {:error, reason}}
@@ -347,28 +279,4 @@ defmodule Fester.DBIndexer do
     |> ConsumedUtxo.changeset(attrs)
     |> Repo.insert()
   end
-
-  defp insert_consumed_utxo_asset(attrs) do
-    %ConsumedUtxoAsset{}
-    |> ConsumedUtxoAsset.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  defp insert_utxo_asset(attrs) do
-    %UtxoAsset{}
-    |> UtxoAsset.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  defp build_assets_map(value) do
-    Enum.reduce(value, %{}, fn {policy_id, assets}, acc ->
-      Enum.reduce(assets, acc, fn {asset_name, amount}, inner_acc ->
-        asset_key = build_asset_key(policy_id, asset_name)
-        Map.put(inner_acc, asset_key, amount)
-      end)
-    end)
-  end
-
-  defp build_asset_key(policy_id, ""), do: policy_id
-  defp build_asset_key(policy_id, asset_name), do: "#{policy_id}.#{asset_name}"
 end
