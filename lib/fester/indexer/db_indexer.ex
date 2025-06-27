@@ -19,7 +19,7 @@ defmodule Fester.DBIndexer do
   Takes a slot number and list of transactions as input.
   """
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
-  def add_to_index(slot, transactions, store_consumed_utxos? \\ true) do
+  def add_to_index(slot, transactions) do
     Repo.transaction(fn ->
       Enum.each(transactions, fn transaction ->
         :telemetry.execute(
@@ -27,7 +27,7 @@ defmodule Fester.DBIndexer do
           %{timestamp: System.system_time(:millisecond)}
         )
 
-        case process_transaction(slot, transaction, store_consumed_utxos?) do
+        case process_transaction(slot, transaction) do
           :ok ->
             :telemetry.execute(
               [:fester, :db_indexer, :tx_end],
@@ -74,8 +74,7 @@ defmodule Fester.DBIndexer do
   ## and no output address in the transactionshould be receiving it.
   defp process_transaction(
          slot,
-         %{"spends" => "collaterals", "id" => tx_id} = transaction,
-         store_consumed_utxos?
+         %{"spends" => "collaterals", "id" => tx_id} = transaction
        ) do
     Logger.info("Processing transaction with collaterals")
 
@@ -86,7 +85,7 @@ defmodule Fester.DBIndexer do
     collateral_return_as_outputs =
       if transaction["collateral_return"], do: [transaction["collateral_return"]], else: []
 
-    with :ok <- process_transaction_inputs(slot, collaterals_as_inputs, store_consumed_utxos?),
+    with :ok <- process_transaction_inputs(slot, collaterals_as_inputs),
          :ok <- process_transaction_outputs(slot, collateral_return_as_outputs, tx_id) do
       :ok
     else
@@ -96,14 +95,14 @@ defmodule Fester.DBIndexer do
     end
   end
 
-  defp process_transaction(slot, transaction, store_consumed_utxos?) do
+  defp process_transaction(slot, transaction) do
     %{
       "id" => tx_id,
       "inputs" => inputs,
       "outputs" => outputs
     } = transaction
 
-    with :ok <- process_transaction_inputs(slot, inputs, store_consumed_utxos?),
+    with :ok <- process_transaction_inputs(slot, inputs),
          :ok <- process_transaction_outputs(slot, outputs, tx_id) do
       :ok
     else
@@ -113,12 +112,12 @@ defmodule Fester.DBIndexer do
     end
   end
 
-  defp process_transaction_inputs(slot, inputs, store_consumed_utxos?) do
+  defp process_transaction_inputs(slot, inputs) do
     inputs
     |> Enum.reduce_while(:ok, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}}, acc ->
       input_ref = "#{tx_hash}##{idx}"
 
-      case process_single_input(slot, input_ref, store_consumed_utxos?) do
+      case process_single_input(slot, input_ref) do
         :ok ->
           {:cont, acc}
 
@@ -129,9 +128,7 @@ defmodule Fester.DBIndexer do
     end)
   end
 
-  defp process_single_input(_slot, _input_ref, false = _store_consumed_utxos?), do: :ok
-
-  defp process_single_input(slot, input_ref, true = _store_consumed_utxos?) do
+  defp process_single_input(slot, input_ref) do
     case Repo.get(Utxo, input_ref) do
       nil ->
         # UTXO not yet tracked in the database.
