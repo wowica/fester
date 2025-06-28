@@ -3,21 +3,10 @@ defmodule Fester.ChainSync do
 
   alias Fester.DBIndexer, as: Indexer
 
-  ###
-  # This parameter is the "rollback horizon". It ensures
-  # the chain will never be rolled back more than this number of blocks.
-  # This value is available on the shelley-genesis.json file as "securityParam".
-  ###
-  # @security_param_mainnet 2160
-  @security_param_testnet 432
-
   def start_link(opts) do
     initial_state = [
-      # Adjust this parameter to the network you are syncing from.
-      security_param: @security_param_testnet,
-      is_synced?: false
-      ## Named eras only work on mainnet
-      # sync_from: :conway
+      is_synced?: false,
+      sync_from: :origin
     ]
 
     opts = Keyword.merge(opts, initial_state)
@@ -27,6 +16,10 @@ defmodule Fester.ChainSync do
   @impl true
   def handle_connect(state) do
     timestamp = System.system_time(:millisecond)
+
+    # This first call "warms up" the DB connection
+    _ = Fester.Repo.get(Fester.Utxo, "123")
+    IO.puts("Warmed up DB connection")
 
     :telemetry.execute(
       [:fester, :chain_sync, :catching_up_started],
@@ -48,13 +41,20 @@ defmodule Fester.ChainSync do
   def handle_block(
         %{
           "transactions" => transactions,
-          "slot" => slot
+          "slot" => slot,
+          "height" => block_height
         } = _block,
         %{is_synced?: true} = state
       ) do
     IO.puts("Fully synced. Adding new block to index.")
 
     Indexer.add_to_index(slot, transactions)
+
+    :telemetry.execute(
+      [:fester, :chain_sync, :block_processed],
+      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+    )
+
     {:ok, :next_block, state}
   end
 
@@ -63,7 +63,8 @@ defmodule Fester.ChainSync do
         %{
           "transactions" => transactions,
           "slot" => slot,
-          "current_tip" => %{"slot" => slot}
+          "current_tip" => %{"slot" => slot},
+          "height" => block_height
         } = _block,
         %{is_synced?: false} = state
       ) do
@@ -74,9 +75,14 @@ defmodule Fester.ChainSync do
       %{timestamp: timestamp}
     )
 
-    IO.puts("Adding new block to index")
+    IO.puts("Fully synced NOW. Adding new block to index")
 
     Indexer.add_to_index(slot, transactions)
+
+    :telemetry.execute(
+      [:fester, :chain_sync, :block_processed],
+      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+    )
 
     {:ok, :next_block, %{state | is_synced?: true}}
   end
