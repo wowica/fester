@@ -3,7 +3,6 @@ defmodule Fester.Utxo do
   import Ecto.Changeset
 
   @primary_key {:utxo_ref, :string, []}
-  @derive {Phoenix.Param, key: :utxo_ref}
 
   schema "utxos" do
     field :address, :string
