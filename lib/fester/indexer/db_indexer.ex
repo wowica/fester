@@ -113,40 +113,66 @@ defmodule Fester.DBIndexer do
   end
 
   defp process_transaction_inputs(slot, inputs) do
-    inputs
-    |> Enum.reduce_while(:ok, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}}, acc ->
-      input_ref = "#{tx_hash}##{idx}"
+    :telemetry.execute(
+      [:fester, :db_indexer, :tx_inputs_start],
+      %{timestamp: System.system_time(:millisecond)}
+    )
 
-      case process_single_input(slot, input_ref) do
-        :ok ->
-          {:cont, acc}
+    result =
+      inputs
+      |> Enum.reduce_while(:ok, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}}, acc ->
+        input_ref = "#{tx_hash}##{idx}"
 
-        {:error, reason} ->
-          Logger.error("Failed to process input #{input_ref}: #{inspect(reason)}")
-          {:halt, {:error, reason}}
-      end
-    end)
+        case process_single_input(slot, input_ref) do
+          :ok ->
+            {:cont, acc}
+
+          {:error, reason} ->
+            Logger.error("Failed to process input #{input_ref}: #{inspect(reason)}")
+            {:halt, {:error, reason}}
+        end
+      end)
+
+    :telemetry.execute(
+      [:fester, :db_indexer, :tx_inputs_end],
+      %{timestamp: System.system_time(:millisecond)}
+    )
+
+    result
   end
 
   defp process_single_input(slot, input_ref) do
-    case Repo.get(Utxo, input_ref) do
-      nil ->
-        # UTXO not yet tracked in the database.
-        # This can happen when sync starts at a particular
-        # point in the chain.
-        :ok
+    :telemetry.execute(
+      [:fester, :db_indexer, :tx_input_start],
+      %{timestamp: System.system_time(:millisecond)}
+    )
 
-      utxo ->
-        # Update the UTXO to mark it as consumed
-        with {:ok, _utxo} <-
-               Utxo.changeset(utxo, %{consumed_at_slot: slot})
-               |> Repo.update() do
+    result =
+      case Repo.get(Utxo, input_ref) do
+        nil ->
+          # UTXO not yet tracked in the database.
+          # This can happen when sync starts at a particular
+          # point in the chain other than origin.
           :ok
-        else
-          {:error, reason} -> {:error, reason}
-          {0, _} -> {:error, "Failed to update UTXO #{input_ref}"}
-        end
-    end
+
+        utxo ->
+          # Update the UTXO to mark it as consumed
+          with {:ok, _utxo} <-
+                 Utxo.changeset(utxo, %{consumed_at_slot: slot})
+                 |> Repo.update() do
+            :ok
+          else
+            {:error, reason} -> {:error, reason}
+            {0, _} -> {:error, "Failed to update UTXO #{input_ref}"}
+          end
+      end
+
+    :telemetry.execute(
+      [:fester, :db_indexer, :tx_input_end],
+      %{timestamp: System.system_time(:millisecond)}
+    )
+
+    result
   end
 
   defp process_transaction_outputs(slot, outputs, tx_id) do

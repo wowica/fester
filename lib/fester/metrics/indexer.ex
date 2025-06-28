@@ -14,7 +14,11 @@ defmodule Fester.Metrics.Indexer do
       "indexer-metrics-handler",
       [
         [:fester, :db_indexer, :tx_start],
-        [:fester, :db_indexer, :tx_end]
+        [:fester, :db_indexer, :tx_end],
+        [:fester, :db_indexer, :tx_inputs_start],
+        [:fester, :db_indexer, :tx_inputs_end],
+        [:fester, :db_indexer, :tx_input_start],
+        [:fester, :db_indexer, :tx_input_end]
       ],
       &__MODULE__.handle_telemetry_event/4,
       nil
@@ -23,8 +27,10 @@ defmodule Fester.Metrics.Indexer do
     {:ok,
      %{
        tx_start_time: nil,
+       tx_inputs_start_time: nil,
+       tx_input_start_time: nil,
        tx_count: 0,
-       tx_total_duration: 0
+       acc_tx_duration: 0
      }}
   end
 
@@ -35,9 +41,9 @@ defmodule Fester.Metrics.Indexer do
   def handle_call(
         :get_tx_avg_duration,
         _from,
-        %{tx_total_duration: tx_total_duration, tx_count: tx_count} = state
+        %{acc_tx_duration: acc_tx_duration, tx_count: tx_count} = state
       ) do
-    {:reply, tx_total_duration / tx_count, state}
+    {:reply, acc_tx_duration / tx_count, state}
   end
 
   def handle_cast(
@@ -55,26 +61,76 @@ defmodule Fester.Metrics.Indexer do
   def handle_cast(
         {
           :handle_telemetry_event,
+          [:fester, :db_indexer, :tx_inputs_start],
+          %{timestamp: timestamp},
+          _metadata
+        },
+        state
+      ) do
+    {:noreply, %{state | tx_inputs_start_time: timestamp}}
+  end
+
+  def handle_cast(
+        {
+          :handle_telemetry_event,
+          [:fester, :db_indexer, :tx_inputs_end],
+          %{timestamp: timestamp},
+          _metadata
+        },
+        state
+      ) do
+    IO.puts("Tx Inputs duration: #{timestamp - state.tx_inputs_start_time}")
+    {:noreply, %{state | tx_inputs_start_time: nil}}
+  end
+
+  def handle_cast(
+        {
+          :handle_telemetry_event,
+          [:fester, :db_indexer, :tx_input_start],
+          %{timestamp: timestamp},
+          _metadata
+        },
+        state
+      ) do
+    {:noreply, %{state | tx_input_start_time: timestamp}}
+  end
+
+  def handle_cast(
+        {
+          :handle_telemetry_event,
+          [:fester, :db_indexer, :tx_input_end],
+          %{timestamp: timestamp},
+          _metadata
+        },
+        state
+      ) do
+    IO.puts("Tx Single Input duration: #{timestamp - state.tx_input_start_time} ms")
+    {:noreply, %{state | tx_input_start_time: nil}}
+  end
+
+  def handle_cast(
+        {
+          :handle_telemetry_event,
           [:fester, :db_indexer, :tx_end],
           %{timestamp: tx_end_time},
           _metadata
         },
         state
       ) do
-    tx_total_duration = tx_end_time - state.tx_start_time + state.tx_total_duration
+    acc_tx_duration = state.acc_tx_duration + tx_end_time - state.tx_start_time
 
-    print_metrics(tx_total_duration, state.tx_count + 1)
+    print_metrics(acc_tx_duration, state.tx_count + 1)
 
-    {:noreply, %{state | tx_total_duration: tx_total_duration, tx_count: state.tx_count + 1}}
+    {:noreply, %{state | acc_tx_duration: acc_tx_duration, tx_count: state.tx_count + 1}}
   end
 
-  defp print_metrics(tx_total_duration, tx_count) do
+  defp print_metrics(acc_tx_duration, tx_count) do
     IO.puts(
       IO.ANSI.format([
         :green,
         "Indexer Tx Processing Time: ",
         :yellow,
-        :io_lib.format("~.2f", [tx_total_duration / tx_count]),
+        :io_lib.format("~.2f", [acc_tx_duration / tx_count]),
         :reset,
         " ms (avg)"
       ])
