@@ -9,7 +9,11 @@ defmodule Fester.Repo.Migrations.CreateUtxos do
       add :created_at_slot, :integer, null: false
       add :consumed_at_slot, :integer, null: true
 
-      timestamps()
+      # Normally we'd use timestamps() here but since we are using Repo.insert_all,
+      # we need to use explicit timestamp fields so we can use a default value for these fields
+      # and avoid having to manually set them in Elixir code.
+      add :inserted_at, :naive_datetime, null: false, default: fragment("now()")
+      add :updated_at, :naive_datetime, null: false, default: fragment("now()")
     end
 
     create_if_not_exists index(:utxos, [:address])

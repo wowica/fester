@@ -112,99 +112,63 @@ defmodule Fester.DBIndexer do
     end
   end
 
+  # Marks inputs as consumed
   defp process_transaction_inputs(slot, inputs) do
     :telemetry.execute(
       [:fester, :db_indexer, :tx_inputs_start],
       %{timestamp: System.system_time(:millisecond)}
     )
 
-    result =
+    input_refs =
       inputs
-      |> Enum.reduce_while(:ok, fn %{"index" => idx, "transaction" => %{"id" => tx_hash}}, acc ->
-        input_ref = "#{tx_hash}##{idx}"
-
-        case process_single_input(slot, input_ref) do
-          :ok ->
-            {:cont, acc}
-
-          {:error, reason} ->
-            Logger.error("Failed to process input #{input_ref}: #{inspect(reason)}")
-            {:halt, {:error, reason}}
-        end
+      |> Enum.map(fn %{"index" => idx, "transaction" => %{"id" => tx_hash}} ->
+        "#{tx_hash}##{idx}"
       end)
+
+    {updated_count, _} =
+      from(utxo in Utxo, where: utxo.utxo_ref in ^input_refs)
+      |> Repo.update_all(set: [consumed_at_slot: slot])
+
+    if updated_count < length(input_refs) do
+      Logger.debug(
+        "#{length(input_refs) - updated_count} UTXOs were not found in database (likely untracked from partial sync)"
+      )
+    end
 
     :telemetry.execute(
       [:fester, :db_indexer, :tx_inputs_end],
       %{timestamp: System.system_time(:millisecond)}
     )
 
-    result
+    :ok
   end
 
-  defp process_single_input(slot, input_ref) do
-    :telemetry.execute(
-      [:fester, :db_indexer, :tx_input_start],
-      %{timestamp: System.system_time(:millisecond)}
-    )
-
-    result =
-      case Repo.get(Utxo, input_ref) do
-        nil ->
-          # UTXO not yet tracked in the database.
-          # This can happen when sync starts at a particular
-          # point in the chain other than origin.
-          :ok
-
-        utxo ->
-          # Update the UTXO to mark it as consumed
-          with {:ok, _utxo} <-
-                 Utxo.changeset(utxo, %{consumed_at_slot: slot})
-                 |> Repo.update() do
-            :ok
-          else
-            {:error, reason} -> {:error, reason}
-            {0, _} -> {:error, "Failed to update UTXO #{input_ref}"}
-          end
-      end
-
-    :telemetry.execute(
-      [:fester, :db_indexer, :tx_input_end],
-      %{timestamp: System.system_time(:millisecond)}
-    )
-
-    result
-  end
+  defp process_transaction_outputs(_slot, [] = _outputs, _tx_id), do: :ok
 
   defp process_transaction_outputs(slot, outputs, tx_id) do
-    outputs
-    |> Enum.with_index()
-    |> Enum.reduce_while(:ok, fn {output, idx}, acc ->
-      output_ref = "#{tx_id}##{idx}"
-      %{"address" => address, "value" => value} = output
+    utxo_attrs_list =
+      outputs
+      |> Enum.with_index()
+      |> Enum.map(fn {output, idx} ->
+        output_ref = "#{tx_id}##{idx}"
+        %{"address" => address, "value" => value} = output
 
-      case process_single_output(slot, output_ref, address, value) do
-        :ok ->
-          {:cont, acc}
+        %{
+          utxo_ref: output_ref,
+          address: address,
+          value: value,
+          created_at_slot: slot
+        }
+      end)
 
-        {:error, reason} ->
-          Logger.error("Failed to process output #{output_ref}: #{inspect(reason)}")
-          {:halt, {:error, reason}}
-      end
-    end)
-  end
+    # Batch insert all UTXOs in a single database operation
+    {inserted_count, _} = Repo.insert_all(Utxo, utxo_attrs_list)
 
-  defp process_single_output(slot, output_ref, address, value) do
-    utxo_attrs = %{
-      utxo_ref: output_ref,
-      address: address,
-      value: value,
-      created_at_slot: slot
-    }
-
-    case insert_utxo(utxo_attrs) do
-      {:ok, _utxo} -> :ok
-      {:error, reason} -> {:error, reason}
+    if inserted_count != length(outputs) do
+      Logger.warning("Expected to insert #{length(outputs)} UTXOs but inserted #{inserted_count}")
     end
+
+    :ok
   end
 
   # Rollback helper functions
@@ -226,11 +190,5 @@ defmodule Fester.DBIndexer do
       |> Repo.update_all(set: [consumed_at_slot: nil])
 
     Logger.info("Restored #{count} consumed UTXOs for rollback to slot #{target_slot}")
-  end
-
-  defp insert_utxo(attrs) do
-    %Utxo{}
-    |> Utxo.changeset(attrs)
-    |> Repo.insert()
   end
 end
