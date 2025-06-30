@@ -131,7 +131,7 @@ defmodule Fester.DBIndexer do
 
     if updated_count < length(input_refs) do
       Logger.debug(
-        "#{length(input_refs) - updated_count} UTXOs were not found in database (likely untracked from partial sync)"
+        "#{length(input_refs) - updated_count} UTXOs were not found in database, likely untracked from partial sync"
       )
     end
 
@@ -142,8 +142,6 @@ defmodule Fester.DBIndexer do
 
     :ok
   end
-
-  defp process_transaction_outputs(_slot, [] = _outputs, _tx_id), do: :ok
 
   defp process_transaction_outputs(slot, outputs, tx_id) do
     utxo_attrs_list =
@@ -161,14 +159,14 @@ defmodule Fester.DBIndexer do
         }
       end)
 
-    # Batch insert all UTXOs in a single database operation
     {inserted_count, _} = Repo.insert_all(Utxo, utxo_attrs_list)
 
     if inserted_count != length(outputs) do
-      Logger.warning("Expected to insert #{length(outputs)} UTXOs but inserted #{inserted_count}")
+      Logger.error("Expected to insert #{length(outputs)} UTXOs but inserted #{inserted_count}")
+      {:error, "Failed to insert UTXOs"}
+    else
+      :ok
     end
-
-    :ok
   end
 
   # Rollback helper functions
