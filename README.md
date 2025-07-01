@@ -29,17 +29,14 @@ Listing assets for a particular address:
 
 ```elixir
 Fester.Indexer.list_assets_by_address("addr_test1...")
+```
+
+or a straight-up list of [UTXOs](./lib/fester/utxo.ex):
+
+```elixir
 Fester.Indexer.list_utxos_by_address("addr_test1...")
 ```
 
-Example output:
-
-```bash
-%{
-  "088da4aba74c8c6a1438448f10dc0ef37c6af91fb4575741b6a3580e.42616e616e6173" => 666,
-  "ada.lovelace" => 802159390
-}
-```
 
 ## HTTP API
 
