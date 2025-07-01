@@ -15,7 +15,7 @@ An Elixir based Cardano Indexer.
 
 ## How to run
 
-Set a `OGMIOS_URL` environment variable to the URL of the OGMIOS instance you want to sync from.
+Set a `OGMIOS_URL` environment variable to the URL of the OGMIOS instance you want to connect to.
 
 ```bash
 export OGMIOS_URL=http://localhost:1337
