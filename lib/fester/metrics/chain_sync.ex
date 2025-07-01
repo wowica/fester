@@ -1,6 +1,8 @@
 defmodule Fester.Metrics.ChainSync do
   use GenServer
 
+  ## Public API
+
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -8,6 +10,8 @@ defmodule Fester.Metrics.ChainSync do
   def get_duration do
     GenServer.call(__MODULE__, :get_duration)
   end
+
+  ## Callbacks
 
   def init(_) do
     :telemetry.attach_many(
@@ -34,8 +38,6 @@ defmodule Fester.Metrics.ChainSync do
   def handle_telemetry_event(event_name, measurements, metadata, _config) do
     GenServer.cast(__MODULE__, {:handle_telemetry_event, event_name, measurements, metadata})
   end
-
-  ## Callbacks
 
   # Tracks the first block processed and stores the start block height.
   # This value is used to calculated the average throughput.

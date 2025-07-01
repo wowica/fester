@@ -1,6 +1,8 @@
 defmodule Fester.Metrics.Indexer do
   use GenServer
 
+  ## Public API
+
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -8,6 +10,8 @@ defmodule Fester.Metrics.Indexer do
   def get_tx_avg_duration do
     GenServer.call(__MODULE__, :get_tx_avg_duration)
   end
+
+  ## Callbacks
 
   def init(_) do
     :telemetry.attach_many(
