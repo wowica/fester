@@ -16,8 +16,11 @@ defmodule Fester.Repo.Migrations.CreateUtxos do
       add :updated_at, :naive_datetime, null: false, default: fragment("now()")
     end
 
-    create_if_not_exists index(:utxos, [:address])
+    create_if_not_exists index(:utxos, [:address, :consumed_at_slot],
+                           where: "consumed_at_slot IS NULL"
+                         )
+
     create_if_not_exists index(:utxos, [:created_at_slot])
-    create_if_not_exists index(:utxos, [:consumed_at_slot])
+    create_if_not_exists index(:utxos, [:consumed_at_slot, :created_at_slot])
   end
 end
