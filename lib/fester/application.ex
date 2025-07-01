@@ -10,7 +10,6 @@ defmodule Fester.Application do
     children = [
       FesterWeb.Telemetry,
       # TODO: Extract these Metrics into a Supervisor
-      Fester.Metrics.IndexState,
       Fester.Metrics.ChainSync,
       Fester.Metrics.Indexer,
       Fester.Repo,

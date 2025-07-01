@@ -1,8 +1,6 @@
 defmodule Fester.Metrics.ChainSync do
   use GenServer
 
-  alias Fester.Metrics.IndexState
-
   def start_link(_) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
@@ -23,37 +21,66 @@ defmodule Fester.Metrics.ChainSync do
       nil
     )
 
-    {:ok, %{start_time: nil, duration: nil}}
+    {:ok,
+     %{
+       sync_start_time: nil,
+       last_timestamp: nil,
+       start_block_height: nil,
+       current_block_height: 0,
+       duration: 0
+     }}
   end
 
   def handle_telemetry_event(event_name, measurements, metadata, _config) do
     GenServer.cast(__MODULE__, {:handle_telemetry_event, event_name, measurements, metadata})
   end
 
+  ## Callbacks
+
+  # Tracks the first block processed and stores the start block height.
+  # This value is used to calculated the average throughput.
   def handle_cast(
         {
           :handle_telemetry_event,
           [:fester, :chain_sync, :block_processed],
-          %{timestamp: now, block_height: height},
+          %{timestamp: now, block_height: current_height},
           _metadata
         },
-        state
+        %{
+          sync_start_time: start_timestamp,
+          start_block_height: nil
+        } = state
       ) do
-    # Get current state
-    index_state = IndexState.get_state()
+    avg_throughput = calculate_throughput(start_timestamp, current_height, now, current_height)
+    print_metrics(avg_throughput, current_height)
 
-    # Calculate throughput
-    {
-      new_index_state,
-      instant_throughput,
-      avg_throughput
-    } = calculate_throughput(index_state, now, height)
+    {:noreply,
+     %{
+       state
+       | last_timestamp: now,
+         start_block_height: current_height,
+         current_block_height: current_height
+     }}
+  end
 
-    IndexState.update_state(new_index_state)
+  def handle_cast(
+        {
+          :handle_telemetry_event,
+          [:fester, :chain_sync, :block_processed],
+          %{timestamp: now, block_height: current_height},
+          _metadata
+        },
+        %{
+          sync_start_time: start_timestamp,
+          start_block_height: start_block_height
+        } = state
+      ) do
+    avg_throughput =
+      calculate_throughput(start_timestamp, start_block_height, now, current_height)
 
-    print_metrics(instant_throughput, avg_throughput, height)
+    print_metrics(avg_throughput, current_height)
 
-    {:noreply, state}
+    {:noreply, %{state | last_timestamp: now, current_block_height: current_height}}
   end
 
   def handle_cast(
@@ -65,7 +92,7 @@ defmodule Fester.Metrics.ChainSync do
         },
         state
       ) do
-    {:noreply, %{state | start_time: timestamp}}
+    {:noreply, %{state | sync_start_time: timestamp}}
   end
 
   def handle_cast(
@@ -78,9 +105,9 @@ defmodule Fester.Metrics.ChainSync do
         state
       ) do
     case state do
-      %{start_time: start_time} when not is_nil(start_time) ->
+      %{sync_start_time: start_time} when not is_nil(start_time) ->
         duration = timestamp - start_time
-        {:noreply, %{state | start_time: nil, duration: duration}}
+        {:noreply, %{state | sync_start_time: nil, duration: duration}}
 
       _ ->
         {:noreply, state}
@@ -91,35 +118,25 @@ defmodule Fester.Metrics.ChainSync do
     {:reply, duration, state}
   end
 
-  defp calculate_throughput(state, now, height) do
+  defp calculate_throughput(start_timestamp, start_block_height, now, current_height) do
     cond do
-      is_nil(state.start_timestamp) ->
+      is_nil(start_timestamp) ->
         # First block
-        new_state = %{
-          state
-          | start_timestamp: now,
-            last_timestamp: now,
-            start_block_height: height,
-            current_block_height: height
-        }
-
-        {new_state, 0.0, 0.0}
+        0.0
 
       true ->
         # Subsequent blocks
-        total_time = now - state.start_timestamp
-        total_blocks_processed = height - state.start_block_height
+        total_time = now - start_timestamp
+        total_blocks_processed = current_height - start_block_height + 1
 
         avg_throughput =
           if total_time > 0, do: total_blocks_processed * 1000 / total_time, else: 0.0
 
-        new_state = %{state | last_timestamp: now, current_block_height: height}
-
-        {new_state, 0.0, avg_throughput}
+        avg_throughput
     end
   end
 
-  defp print_metrics(_instant_throughput, avg_throughput, height) do
+  defp print_metrics(avg_throughput, height) do
     IO.puts(
       IO.ANSI.format([
         :green,
