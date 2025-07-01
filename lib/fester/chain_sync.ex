@@ -15,27 +15,16 @@ defmodule Fester.ChainSync do
 
   @impl true
   def handle_connect(state) do
-    timestamp = System.system_time(:millisecond)
-
     # This first call "warms up" the DB connection
     _ = Fester.Repo.get(Fester.Utxo, "123")
     IO.puts("Warmed up DB connection")
 
     :telemetry.execute(
       [:fester, :chain_sync, :catching_up_started],
-      %{timestamp: timestamp}
+      %{timestamp: System.system_time(:millisecond)}
     )
 
     {:ok, state}
-  end
-
-  @impl true
-  def handle_block(
-        %{"height" => 0} = _genesis_block,
-        state
-      ) do
-    IO.puts("Genesis block with no transactions")
-    {:ok, :next_block, state}
   end
 
   def handle_block(
@@ -68,16 +57,14 @@ defmodule Fester.ChainSync do
         } = _block,
         %{is_synced?: false} = state
       ) do
-    timestamp = System.system_time(:millisecond)
+    IO.puts("Caught up to current tip. Adding new block to index")
+
+    Indexer.add_to_index(slot, transactions)
 
     :telemetry.execute(
       [:fester, :chain_sync, :catching_up_finished],
-      %{timestamp: timestamp}
+      %{timestamp: System.system_time(:millisecond)}
     )
-
-    IO.puts("Fully synced NOW. Adding new block to index")
-
-    Indexer.add_to_index(slot, transactions)
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
@@ -97,8 +84,9 @@ defmodule Fester.ChainSync do
         } = _block,
         %{is_synced?: false} = state
       ) do
-    Indexer.add_to_index(slot, transactions)
     IO.puts("Progress: #{slot / current_tip_slot * 100}%")
+
+    Indexer.add_to_index(slot, transactions)
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
