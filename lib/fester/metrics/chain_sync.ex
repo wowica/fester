@@ -49,10 +49,8 @@ defmodule Fester.Metrics.ChainSync do
       avg_throughput
     } = calculate_throughput(index_state, now, height)
 
-    # Update state
     IndexState.update_state(new_index_state)
 
-    # Print metrics
     print_metrics(instant_throughput, avg_throughput, height)
 
     {:noreply, state}
@@ -109,14 +107,8 @@ defmodule Fester.Metrics.ChainSync do
 
       true ->
         # Subsequent blocks
-        # time_diff = now - state.last_timestamp
         total_time = now - state.start_timestamp
-
-        # Handle edge cases where time_diff or total_time is zero or negative
-        # recent_blocks_processed = height - state.current_block_height
         total_blocks_processed = height - state.start_block_height
-
-        # instant_throughput = if time_diff > 0, do: 1000 / time_diff, else: 0.0
 
         avg_throughput =
           if total_time > 0, do: total_blocks_processed * 1000 / total_time, else: 0.0

@@ -9,7 +9,7 @@ defmodule Fester.Application do
   def start(_type, _args) do
     children = [
       FesterWeb.Telemetry,
-      # Extract this into a Supervisor
+      # TODO: Extract these Metrics into a Supervisor
       Fester.Metrics.IndexState,
       Fester.Metrics.ChainSync,
       Fester.Metrics.Indexer,
@@ -17,8 +17,7 @@ defmodule Fester.Application do
       {DNSCluster, query: Application.get_env(:fester, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Fester.PubSub},
       {Finch, name: Fester.Finch},
-      # {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
-      {Fester.ChainSyncBenchmark, url: System.fetch_env!("OGMIOS_URL")},
+      {Fester.ChainSync, url: System.fetch_env!("OGMIOS_URL")},
       FesterWeb.Endpoint
     ]
 

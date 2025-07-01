@@ -7,6 +7,9 @@ defmodule Fester.ChainSync do
     initial_state = [
       is_synced?: false,
       sync_from: :origin
+      ## To sync from a specific point in the chain, uncomment the line below
+      ## and set the slot and block hash
+      # sync_from: {slot, block_hash}
     ]
 
     opts = Keyword.merge(opts, initial_state)
