@@ -4,44 +4,24 @@ defmodule Fester.Indexer do
   alias Fester.Repo
   alias Fester.Utxo
 
-  @moduledoc """
-  The Indexer context.
-  """
-
   @doc """
   Returns the list of utxos for a given address.
-
-  ## Examples
-
-      iex> list_utxos_by_address("addr1...")
-      [%Utxo{}, ...]
-
   """
   def list_utxos_by_address(address) do
     from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
     |> Repo.all()
   end
 
-  def list_utxos_by_slot(slot) do
-    from(u in Utxo, where: u.created_at_slot == ^slot and is_nil(u.consumed_at_slot))
-    |> Repo.all()
-  end
-
   @doc """
-  Returns aggregated assets for a given address.
-
-  ## Examples
-
-      iex> list_assets_by_address("addr1...")
-      %{"policy_id.asset_name" => 1000, ...}
-
+  Returns the balance of assets for a given address.
   """
-
   def list_assets_by_address(address) do
     from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
     |> Repo.all()
     |> Enum.reduce(%{}, &build_assets_map/2)
   end
+
+  # Helper functions
 
   defp build_assets_map(%Utxo{value: value}, acc) do
     Enum.reduce(value, acc, fn {policy_id, assets}, acc ->
