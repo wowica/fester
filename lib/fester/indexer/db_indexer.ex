@@ -15,8 +15,7 @@ defmodule Fester.DBIndexer do
   ## 2. rollback_to_slot/1
 
   @doc """
-  Processes transactions in a block by inserting output assets and removing consumed inputs from the database.
-  Takes a slot number and list of transactions as input.
+  Processes transactions in a block by creating new UTXOs and updating consumed inputs accordingly.
   """
   @spec add_to_index(integer(), list(map())) :: :ok | {:error, any()}
   def add_to_index(slot, transactions) do
@@ -44,13 +43,10 @@ defmodule Fester.DBIndexer do
   end
 
   @doc """
-  Rolls back the index to a given slot.
+  Rolls back the index to a given slot by:
 
-  The rollback process is as follows:
-  1. Delete UTXOs created after the target slot
-  2. Restore UTXOs that were consumed after the target slot AND originally created before or at target_slot
-
-  Takes a target slot number as input.
+  1- Deleting UTXOs created after the target slot
+  2- Restoring UTXOs that were consumed after the target slot AND originally created before or at target_slot.
   """
   @spec rollback_to_slot(integer()) :: :ok | {:error, any()}
   def rollback_to_slot(target_slot) do
