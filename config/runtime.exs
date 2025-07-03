@@ -114,6 +114,10 @@ if config_env() == :prod do
   #     config :swoosh, :api_client, Swoosh.ApiClient.Hackney
   #
   # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+
+  # This is set so migrations are automatically run when the app starts
+  # in production.
+  config :fester, run_migrations: true
 end
 
 # Not just in prod, but in all environments
