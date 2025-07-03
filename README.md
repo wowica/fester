@@ -37,6 +37,20 @@ or a straight-up list of [UTXOs](./lib/fester/utxo.ex):
 Fester.Indexer.list_utxos_by_address("addr_test1...")
 ```
 
+## Running with Docker
+
+Build the Docker image with:
+
+```bash
+docker build -t fester .
+```
+
+Populate the proper environment variables in `docker_run.sh` and run it with:
+
+```bash
+./docker_run.sh
+```
+
 
 ## HTTP API
 
