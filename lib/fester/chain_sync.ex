@@ -30,6 +30,20 @@ defmodule Fester.ChainSync do
     {:ok, state}
   end
 
+  # Needed for mainnet, where Ogmios returns neither "transactions"
+  # nor "slot" properties for the genesis block.
+  @impl true
+  def handle_block(
+        %{
+          "height" => 0
+        } = _block,
+        %{is_synced?: false} = state
+      ) do
+    # No transactions on genesis block.
+    # Genesis wallets must be checked elsewhere.
+    {:ok, :next_block, state}
+  end
+
   def handle_block(
         %{
           "transactions" => transactions,
