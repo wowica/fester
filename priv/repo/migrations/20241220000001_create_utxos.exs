@@ -4,7 +4,9 @@ defmodule Fester.Repo.Migrations.CreateUtxos do
   def change do
     create_if_not_exists table(:utxos, primary_key: false) do
       add :utxo_ref, :string, primary_key: true
-      add :address, :string, null: false
+      # Some Byron era addresses are huge so we must use text
+      # instead of string (varchar 255)
+      add :address, :text, null: false
       add :value, :jsonb, null: false, default: "{}"
       add :created_at_slot, :integer, null: false
       add :consumed_at_slot, :integer, null: true
