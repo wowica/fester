@@ -8,7 +8,9 @@ defmodule Fester.Indexer do
   Returns the list of utxos for a given address.
   """
   def list_utxos_by_address(address) do
-    from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
+    address_hash = Utxo.hash_address(address)
+
+    from(u in Utxo, where: u.address_hash == ^address_hash and is_nil(u.consumed_at_slot))
     |> Repo.all()
   end
 
@@ -16,7 +18,9 @@ defmodule Fester.Indexer do
   Returns the balance of assets for a given address.
   """
   def list_assets_by_address(address) do
-    from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
+    address_hash = Utxo.hash_address(address)
+
+    from(u in Utxo, where: u.address_hash == ^address_hash and is_nil(u.consumed_at_slot))
     |> Repo.all()
     |> Enum.reduce(%{}, &build_assets_map/2)
   end
