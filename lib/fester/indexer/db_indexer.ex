@@ -147,9 +147,12 @@ defmodule Fester.DBIndexer do
         output_ref = "#{tx_id}##{idx}"
         %{"address" => address, "value" => value} = output
 
+        address_hash = Utxo.hash_address(address)
+
         %{
           utxo_ref: output_ref,
           address: address,
+          address_hash: address_hash,
           value: value,
           created_at_slot: slot
         }

@@ -6,10 +6,12 @@ defmodule Fester.ChainSync do
   def start_link(opts) do
     initial_state = [
       is_synced?: false,
-      sync_from: :origin
+      # sync_from: :origin
       ## To sync from a specific point in the chain, uncomment the line below
       ## and set the slot and block hash
-      # sync_from: {slot, block_hash}
+      # Last babbage block in preview testnet
+      sync_from: {55_814_394, "bdd4baa2c81d0500a695f836332193ea06c2ce364e585057142220fc0782144c"},
+      block_counter: 0
     ]
 
     opts = Keyword.merge(opts, initial_state)
@@ -55,14 +57,13 @@ defmodule Fester.ChainSync do
         %{
           "transactions" => transactions,
           "slot" => slot,
-          "current_tip" => %{"slot" => slot},
           "height" => block_height
         } = _block,
-        %{is_synced?: false} = state
+        %{is_synced?: false, block_counter: 1000} = state
       ) do
-    IO.puts("Caught up to current tip. Adding new block to index")
-
     Indexer.add_to_index(slot, transactions)
+
+    IO.puts("Finished syncing 1000 blocks")
 
     :telemetry.execute(
       [:fester, :chain_sync, :catching_up_finished],
@@ -74,7 +75,7 @@ defmodule Fester.ChainSync do
       %{timestamp: System.system_time(:millisecond), block_height: block_height}
     )
 
-    {:ok, :next_block, %{state | is_synced?: true}}
+    {:ok, state}
   end
 
   @impl true
@@ -85,7 +86,7 @@ defmodule Fester.ChainSync do
           "height" => block_height,
           "current_tip" => %{"slot" => current_tip_slot}
         } = _block,
-        %{is_synced?: false} = state
+        %{is_synced?: false, block_counter: counter} = state
       ) do
     IO.puts("Progress: #{slot / current_tip_slot * 100}%")
 
@@ -96,7 +97,7 @@ defmodule Fester.ChainSync do
       %{timestamp: System.system_time(:millisecond), block_height: block_height}
     )
 
-    {:ok, :next_block, state}
+    {:ok, :next_block, %{state | block_counter: counter + 1}}
   end
 
   # Needed for mainnet, where Ogmios returns neither "transactions"
