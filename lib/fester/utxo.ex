@@ -28,7 +28,8 @@ defmodule Fester.Utxo do
   generation via triggers.
   """
   def hash_address(address) do
-    :crypto.hash(:sha256, address)
+    :sha256
+    |> :crypto.hash(address)
     |> Base.encode16(case: :lower)
   end
 end
