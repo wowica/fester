@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y curl \
 RUN apt-get update -y && apt-get install -y build-essential git \
     && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-    # prepare build dir
+# prepare build dir
 WORKDIR /app
 
 # install hex + rebar
