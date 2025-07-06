@@ -39,7 +39,7 @@ defmodule Fester.MixProject do
       {:finch, "~> 0.13"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
-      {:phoenix, "~> 1.7.18"},
+      {:phoenix, "~> 1.7.21"},
       {:phoenix_ecto, "~> 4.5"},
       {:swoosh, "~> 1.5"},
       {:telemetry_metrics, "~> 1.0"},
