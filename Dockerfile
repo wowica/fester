@@ -50,6 +50,7 @@ RUN mix compile
 COPY config/runtime.exs config/
 
 COPY rel rel
+COPY priv/fester-initial-schema.db fester.db
 RUN mix release
 
 # start a new build stage so that the final image will only contain
@@ -69,6 +70,10 @@ ENV LC_ALL=en_US.UTF-8
 
 WORKDIR "/app"
 RUN chown nobody /app
+
+# Create a data directory for the SQLite database with proper permissions
+RUN mkdir -p /app/data && chown nobody:root /app/data
+COPY --from=builder --chown=nobody:root /app/fester.db /app/data/fester.db
 
 # set runner ENV
 ENV MIX_ENV="prod"

@@ -5,13 +5,6 @@ defmodule Fester.Application do
 
   @impl true
   def start(_type, _args) do
-    # Run migrations in prod - see config/runtime.exs
-    if should_run_migrations?() do
-      IO.puts("Running database migrations...")
-      Fester.Release.migrate()
-      IO.puts("Database migrations completed successfully")
-    end
-
     children = [
       FesterWeb.Telemetry,
       # TODO: Extract these Metrics into a Supervisor
@@ -37,10 +30,5 @@ defmodule Fester.Application do
   def config_change(changed, _new, removed) do
     FesterWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp should_run_migrations? do
-    should_run? = Application.get_env(:fester, :run_migrations, false)
-    should_run? in [true, "true"]
   end
 end

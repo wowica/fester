@@ -103,7 +103,9 @@ if config_env() == :prod do
   # This is set so migrations are automatically run when the app starts
   # in production.
   config :fester, run_migrations: true
+
+  # Not just in prod, but in all environments
+  config :fester, Fester.Repo, database: "/app/data/fester.db"
 end
 
-# Not just in prod, but in all environments
-config :fester, Fester.Repo, pool_size: System.schedulers_online() * 2, database: "fester.db"
+config :fester, Fester.Repo, pool_size: System.schedulers_online() * 2
