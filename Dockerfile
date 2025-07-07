@@ -50,6 +50,9 @@ RUN mix compile
 COPY config/runtime.exs config/
 
 COPY rel rel
+# This is a workaround to avoid race conditions when running
+# migrations in the container - we copy the initial schema so
+# that migrations don't need to run at all.
 COPY priv/fester-initial-schema.db fester.db
 RUN mix release
 

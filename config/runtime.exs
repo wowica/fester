@@ -104,6 +104,7 @@ if config_env() == :prod do
   # in production.
   config :fester, run_migrations: true
 
+  # This database path matches what's in the Dockerfile
   config :fester, Fester.Repo, database: "/app/data/fester.db"
 end
 
