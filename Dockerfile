@@ -72,8 +72,10 @@ WORKDIR "/app"
 RUN chown nobody /app
 
 # Create a data directory for the SQLite database with proper permissions
-RUN mkdir -p /app/data && chown nobody:root /app/data
-COPY --from=builder --chown=nobody:root /app/fester.db /app/data/fester.db
+RUN mkdir -p /app/data && chown nobody:nogroup /app/data && chmod 777 /app/data
+COPY --from=builder --chown=nobody:nogroup /app/fester.db /app/data/fester.db
+# Ensure the database file is readable and writable by all users and groups
+RUN chmod 666 /app/data/fester.db
 
 # set runner ENV
 ENV MIX_ENV="prod"
