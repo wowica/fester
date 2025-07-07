@@ -35,16 +35,16 @@ defmodule Fester.MixProject do
       {:bandit, "~> 1.5"},
       {:dns_cluster, "~> 0.1.1"},
       {:ecto_sql, "~> 3.10"},
+      {:ecto_sqlite3, "~> 0.17"},
       {:finch, "~> 0.13"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
-      {:phoenix, "~> 1.7.18"},
+      {:phoenix, "~> 1.7.21"},
       {:phoenix_ecto, "~> 4.5"},
-      {:postgrex, ">= 0.0.0"},
       {:swoosh, "~> 1.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
-      {:xogmios, "~> 0.6.1"}
+      {:xogmios, github: "wowica/xogmios", ref: "28f7347"}
     ]
   end
 
@@ -57,7 +57,7 @@ defmodule Fester.MixProject do
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      "ecto.setup": ["ecto.create", "ecto.migrate"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
     ]

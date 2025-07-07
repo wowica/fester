@@ -1,15 +1,5 @@
 import Config
 
-# Configure your database
-config :fester, Fester.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "fester_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
-
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -24,7 +14,8 @@ config :fester, FesterWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   secret_key_base: "QUkXphTkj5bEjCiE03y4/WdOQZLprfbcpwexRD6ltexLxu8z1SOo92LnUwUqGAgY",
-  watchers: []
+  watchers: [],
+  server: true
 
 # ## SSL Support
 #
@@ -53,7 +44,7 @@ config :fester, FesterWeb.Endpoint,
 config :fester, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :console, format: "[$level] $message\n", level: :info
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -64,3 +55,5 @@ config :phoenix, :plug_init_mode, :runtime
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+config :fester, Fester.Repo, database: "fester.db"

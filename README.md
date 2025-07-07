@@ -9,44 +9,49 @@ An Elixir based Cardano Indexer.
 ⚠️ Attention:
 
 - [x] Highly experimental POC.
+- [x] Developed against preview testnet.
 - [x] Not production ready.
 - [x] Production use is not recommended.
-- [x] No usar en producción.
 
 ## How to run
 
-Set a `OGMIOS_URL` environment variable to the URL of the OGMIOS instance you want to sync from.
+Set a `OGMIOS_URL` environment variable to the URL of the OGMIOS instance you want to connect to.
 
 ```bash
 export OGMIOS_URL=http://localhost:1337
 ```
 
-Manually set `@addresses` in `lib/fester/indexer/supervisor.ex` to the addresses you want to index.
+Run the application with `iex -S mix`. This should immediately start the syncing process. Defaults to syncing from the origin so it will take a while to catch up. 
 
-```elixir
-@addresses [
-  "addr_1...",
-  "addr_2...",
-  "addr_3...",
-  ...
-]
-```
-
-Run the application with `iex -S mix`. This should immediately start syncing with the chain and indexing the assets for each one of the addresses you've set. 
-
-Depending on which network you're using, it might take a while to catch up. 😴
+To sync from a specific point in the chain, set the `sync_from` option on `lib/fester/chain_sync.ex`.
 
 Listing assets for a particular address:
 
 ```elixir
-Fester.Indexer.list_assets("addr_1...")
+Fester.Indexer.list_assets_by_address("addr_test1...")
 ```
 
-Example output:
+or a straight-up list of [UTXOs](./lib/fester/utxo.ex):
+
+```elixir
+Fester.Indexer.list_utxos_by_address("addr_test1...")
+```
+
+## Running with Docker
+
+Build the Docker image with:
 
 ```bash
-%{
-  "088da4aba74c8c6a1438448f10dc0ef37c6af91fb4575741b6a3580e.42616e616e6173" => 666,
-  "ada.lovelace" => 802159390
-}
+docker build -t fester .
 ```
+
+Populate the proper environment variables in `docker_run.sh` and run it with:
+
+```bash
+./docker_run.sh
+```
+
+
+## HTTP API
+
+A GET request to the `/api/address/$ADDR/assets` endpoint returns the assets for an address.

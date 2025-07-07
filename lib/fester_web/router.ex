@@ -7,6 +7,9 @@ defmodule FesterWeb.Router do
 
   scope "/api", FesterWeb do
     pipe_through :api
+
+    # Lists assets for an address
+    get "/address/:address/assets", AssetsController, :index
   end
 
   # Enable Swoosh mailbox preview in development
