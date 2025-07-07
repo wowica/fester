@@ -104,8 +104,8 @@ if config_env() == :prod do
   # in production.
   config :fester, run_migrations: true
 
-  # Not just in prod, but in all environments
   config :fester, Fester.Repo, database: "/app/data/fester.db"
 end
 
+# Not just in prod, but in all environments
 config :fester, Fester.Repo, pool_size: System.schedulers_online() * 2
