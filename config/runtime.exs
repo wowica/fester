@@ -108,5 +108,12 @@ if config_env() == :prod do
   config :fester, Fester.Repo, database: "/app/data/fester.db"
 end
 
-# Not just in prod, but in all environments
-config :fester, Fester.Repo, pool_size: System.schedulers_online() * 2
+config :fester, Fester.Repo,
+  pool_size: min(System.schedulers_online() * 4, 20),
+  pragmas: [
+    {"journal_mode", "WAL"},
+    {"wal_autocheckpoint", "8000"},
+    {"cache_size", "-64000"},
+    {"synchronous", "NORMAL"},
+    {"mmap_size", "268435456"}
+  ]
