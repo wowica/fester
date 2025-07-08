@@ -108,12 +108,11 @@ if config_env() == :prod do
   config :fester, Fester.Repo, database: "/app/data/fester.db"
 end
 
+# Favors WAL mode for better write performance during sync
 config :fester, Fester.Repo,
   pool_size: min(System.schedulers_online() * 4, 20),
-  pragmas: [
-    {"journal_mode", "WAL"},
-    {"wal_autocheckpoint", "8000"},
-    {"cache_size", "-64000"},
-    {"synchronous", "NORMAL"},
-    {"mmap_size", "268435456"}
+  journal_mode: :wal,
+  wal_auto_check_point: 8000,
+  custom_pragmas: [
+    mmap_size: 268_435_456
   ]
