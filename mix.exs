@@ -34,8 +34,8 @@ defmodule Fester.MixProject do
     [
       {:bandit, "~> 1.5"},
       {:dns_cluster, "~> 0.1.1"},
-      {:ecto_sql, "~> 3.10"},
-      {:ecto_sqlite3, "~> 0.17"},
+      {:ecto_sql, "~> 3.13"},
+      {:ecto_sqlite3, "~> 0.21"},
       {:finch, "~> 0.13"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
