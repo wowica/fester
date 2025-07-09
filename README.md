@@ -19,7 +19,8 @@ An Elixir based Cardano Indexer.
 ### Phase 2
 - [ ] Ability to stop/resume syncing.
 - [ ] In-memory indexer (look into ETS)
-- [ ] Metrics exported to Prometheus.
+- [ ] Metrics LiveView Dashboard
+- [ ] Metrics exported to Prometheus
 
 ### Phase 3
 - [ ] Clustered indexer with (BEAM) process distribution
