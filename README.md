@@ -6,12 +6,26 @@
 
 An Elixir based Cardano Indexer.
 
-⚠️ Attention:
+## Roadmap 
 
-- [x] Highly experimental POC.
-- [x] Developed against preview testnet.
-- [x] Not production ready.
-- [x] Production use is not recommended.
+### Phase 1 - MVP 
+- [x] Index outputs by address.
+- [x] Persist to local database (SQLite)
+- [x] HTTP endpoint for querying assets by address
+- [x] Metrics printed to standard out
+- [x] Tested with Preview + Mainnet
+- [x] Run with Docker
+
+### Phase 2
+- [ ] Ability to stop/resume syncing.
+- [ ] In-memory indexer (look into ETS)
+- [ ] Metrics exported to Prometheus.
+
+### Phase 3
+- [ ] Clustered indexer with (BEAM) process distribution
+- [ ] Adjust persistence to fit with a clustered environment (look into Mnesia)
+- [ ] Index more data (TBD)
+- [ ] Add more endpoints (TBD)
 
 ## How to run
 
