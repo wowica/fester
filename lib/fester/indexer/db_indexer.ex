@@ -147,7 +147,6 @@ defmodule Fester.DBIndexer do
       |> Enum.map(fn {output, idx} ->
         output_ref = "#{tx_id}##{idx}"
         %{"address" => address, "value" => value} = output
-        IO.inspect(output)
 
         %{
           utxo_ref: output_ref,
