@@ -9,6 +9,7 @@ defmodule Fester.Utxo do
     field :created_at_slot, :integer
     field :consumed_at_slot, :integer
     field :value, :map
+    field :txout_cbor, :string
 
     timestamps()
   end
