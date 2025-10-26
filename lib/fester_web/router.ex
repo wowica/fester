@@ -10,6 +10,7 @@ defmodule FesterWeb.Router do
 
     # Lists assets for an address
     get "/address/:address/assets", AssetsController, :index
+    get "/address/:address/utxos", UtxosController, :index
   end
 
   # Enable Swoosh mailbox preview in development
