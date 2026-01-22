@@ -9,9 +9,7 @@ defmodule FesterWeb.DashboardLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Aggregator.subscribe()
-    end
+    if connected?(socket), do: Aggregator.subscribe()
 
     metrics = Aggregator.get_metrics()
 

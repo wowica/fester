@@ -7,7 +7,7 @@ defmodule Fester.ChainSync do
   def start_link(opts) do
     initial_state = [
       is_synced?: false,
-      sync_from: :conway
+      sync_from: :origin
       ## To sync from a specific point in the chain, uncomment the line below
       ## and set the slot and block hash
       # sync_from: {slot, block_hash}
