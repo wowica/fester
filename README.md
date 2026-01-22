@@ -30,13 +30,13 @@ An Elixir based Cardano Indexer.
 
 ## How to run
 
-Set a `OGMIOS_URL` environment variable to the URL of the OGMIOS instance you want to connect to.
+Set a `OGMIOS_URL` environment variable to the WebSocket URL of the OGMIOS instance you want to connect to.
 
 ```bash
-export OGMIOS_URL=http://localhost:1337
+export OGMIOS_URL=ws://localhost:1337
 ```
 
-Run the application with `iex -S mix`. This should immediately start the syncing process. Defaults to syncing from the origin so it will take a while to catch up. 
+Setup the database with `mix ecto.migrate` and then run the application with `iex -S mix`. This should immediately start the syncing process. Defaults to syncing from the origin so it will take a while to catch up.
 
 To sync from a specific point in the chain, set the `sync_from` option on `lib/fester/chain_sync.ex`.
 
