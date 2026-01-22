@@ -1,0 +1,9 @@
+<main class="container">
+  <%= if info = Phoenix.Flash.get(@flash, :info) do %>
+    <div class="flash-info"><%= info %></div>
+  <% end %>
+  <%= if error = Phoenix.Flash.get(@flash, :error) do %>
+    <div class="flash-error"><%= error %></div>
+  <% end %>
+  <%= @inner_content %>
+</main>

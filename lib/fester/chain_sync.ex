@@ -7,7 +7,7 @@ defmodule Fester.ChainSync do
   def start_link(opts) do
     initial_state = [
       is_synced?: false,
-      sync_from: :origin
+      sync_from: :conway
       ## To sync from a specific point in the chain, uncomment the line below
       ## and set the slot and block hash
       # sync_from: {slot, block_hash}
@@ -46,7 +46,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: slot
+      }
     )
 
     {:ok, :next_block, state}
@@ -75,7 +80,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: slot
+      }
     )
 
     {:ok, :next_block, %{state | is_synced?: true}}
@@ -97,7 +107,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: current_tip_slot
+      }
     )
 
     {:ok, :next_block, state}

@@ -41,6 +41,7 @@ defmodule Fester.MixProject do
       {:jason, "~> 1.2"},
       {:phoenix, "~> 1.7.21"},
       {:phoenix_ecto, "~> 4.5"},
+      {:phoenix_live_view, "~> 1.0"},
       {:swoosh, "~> 1.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
