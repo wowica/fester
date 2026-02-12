@@ -115,4 +115,5 @@ config :fester, Fester.Repo,
   wal_auto_check_point: 8000,
   custom_pragmas: [
     mmap_size: 268_435_456
-  ]
+  ],
+  busy_timeout: 5000

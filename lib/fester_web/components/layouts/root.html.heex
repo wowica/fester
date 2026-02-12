@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <title>Fester Dashboard</title>
+    <style>
+      :root {
+        --bg-canvas: #111217;
+        --bg-primary: #181b1f;
+        --bg-secondary: #22252b;
+        --border-weak: #34383f;
+        --text-primary: #eff4f9;
+        --text-secondary: #8e8e8e;
+        --accent-blue: #3274d9;
+        --accent-green: #73bf69;
+        --accent-orange: #ff9830;
+        --accent-red: #f2495c;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: var(--bg-canvas);
+        color: var(--text-primary);
+        line-height: 1.5;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-weak);
+      }
+
+      .header h1 {
+        font-size: 24px;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      .header-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .status-badge.syncing {
+        background-color: rgba(255, 152, 48, 0.15);
+        color: var(--accent-orange);
+      }
+
+      .status-badge.synced {
+        background-color: rgba(115, 191, 105, 0.15);
+        color: var(--accent-green);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.syncing {
+        background-color: var(--accent-orange);
+      }
+
+      .status-dot.synced {
+        background-color: var(--accent-green);
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .metric-card {
+        background-color: var(--bg-primary);
+        border: 1px solid var(--border-weak);
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .metric-card .label {
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .metric-card .value {
+        font-size: 32px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .metric-card .unit {
+        font-size: 14px;
+        font-weight: 400;
+        color: var(--text-secondary);
+        margin-left: 4px;
+      }
+
+      .metric-card.blue .value {
+        color: var(--accent-blue);
+      }
+
+      .metric-card.green .value {
+        color: var(--accent-green);
+      }
+
+      .metric-card.orange .value {
+        color: var(--accent-orange);
+      }
+
+      .info-panel {
+        background-color: var(--bg-primary);
+        border: 1px solid var(--border-weak);
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-weak);
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+      }
+
+      .info-row .label {
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
+
+      .info-row .value {
+        color: var(--text-primary);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .flash-info {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        background-color: rgba(50, 116, 217, 0.15);
+        border: 1px solid var(--accent-blue);
+        color: var(--accent-blue);
+      }
+
+      .flash-error {
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        background-color: rgba(242, 73, 92, 0.15);
+        border: 1px solid var(--accent-red);
+        color: var(--accent-red);
+      }
+
+      .progress-section {
+        background-color: var(--bg-primary);
+        border: 1px solid var(--border-weak);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .progress-label {
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+      }
+
+      .progress-percentage {
+        font-size: 24px;
+        font-weight: 600;
+      }
+
+      .progress-percentage.syncing {
+        color: var(--accent-orange);
+      }
+
+      .progress-percentage.synced {
+        color: var(--accent-green);
+      }
+
+      .progress-bar-container {
+        height: 12px;
+        background-color: var(--bg-secondary);
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 8px;
+      }
+
+      .progress-bar-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease-out;
+      }
+
+      .progress-bar-fill.syncing {
+        background: linear-gradient(90deg, var(--accent-orange) 0%, #ffb366 100%);
+      }
+
+      .progress-bar-fill.synced {
+        background: linear-gradient(90deg, var(--accent-green) 0%, #9ed899 100%);
+      }
+
+      .progress-bar-fill.shimmer {
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite linear;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .progress-slots {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <%= @inner_content %>
+    <script defer phx-track-static src={~p"/assets/phoenix.js"}></script>
+    <script defer phx-track-static src={~p"/assets/phoenix_live_view.js"}></script>
+    <script defer phx-track-static src={~p"/assets/app.js"}></script>
+  </body>
+</html>

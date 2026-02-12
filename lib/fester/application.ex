@@ -10,6 +10,7 @@ defmodule Fester.Application do
       # TODO: Extract these Metrics into a Supervisor
       Fester.Metrics.ChainSync,
       Fester.Metrics.Indexer,
+      Fester.Metrics.Aggregator,
       Fester.Repo,
       {DNSCluster, query: Application.get_env(:fester, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Fester.PubSub},

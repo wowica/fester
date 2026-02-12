@@ -46,7 +46,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: slot
+      }
     )
 
     {:ok, :next_block, state}
@@ -75,7 +80,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: slot
+      }
     )
 
     {:ok, :next_block, %{state | is_synced?: true}}
@@ -97,7 +107,12 @@ defmodule Fester.ChainSync do
 
     :telemetry.execute(
       [:fester, :chain_sync, :block_processed],
-      %{timestamp: System.system_time(:millisecond), block_height: block_height}
+      %{
+        timestamp: System.system_time(:millisecond),
+        block_height: block_height,
+        slot: slot,
+        tip_slot: current_tip_slot
+      }
     )
 
     {:ok, :next_block, state}
