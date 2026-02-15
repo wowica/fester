@@ -5,11 +5,21 @@ defmodule Fester.Indexer do
   alias Fester.Utxo
 
   @doc """
-  Returns the list of utxos for a given address.
+  Returns the list of utxos for a given address
+  optimized for consumption by blaze-query getUnspentOutputs
   """
   def list_utxos_by_address(address) do
     from(u in Utxo, where: u.address == ^address and is_nil(u.consumed_at_slot))
     |> Repo.all()
+    |> Enum.reduce(%{data: []}, &build_response/2)
+  end
+
+  defp build_response(%Utxo{utxo_ref: utxo_ref, txout_cbor: cbor}, acc) do
+    [tx_hash, index] = String.split(utxo_ref, "#")
+    data = Map.get(acc, :data)
+    data = [%{tx_hash: tx_hash, index: index, txout_cbor: cbor} | data]
+
+    Map.put(acc, :data, data)
   end
 
   @doc """

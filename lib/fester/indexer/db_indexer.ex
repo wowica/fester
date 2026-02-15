@@ -74,7 +74,7 @@ defmodule Fester.DBIndexer do
        ) do
     Logger.info("Processing transaction with collaterals")
 
-    %{"collaterals" => collaterals_as_inputs} = transaction
+    %{"collaterals" => collaterals_as_inputs, "cbor" => cbor} = transaction
 
     # Wrapping the collateral return in a list to make it consistent with the
     # other calling of the process_transaction_outputs function.
@@ -82,7 +82,7 @@ defmodule Fester.DBIndexer do
       if transaction["collateral_return"], do: [transaction["collateral_return"]], else: []
 
     with :ok <- process_transaction_inputs(slot, collaterals_as_inputs),
-         :ok <- process_transaction_outputs(slot, collateral_return_as_outputs, tx_id) do
+         :ok <- process_transaction_outputs(slot, collateral_return_as_outputs, tx_id, cbor) do
       :ok
     else
       {:error, reason} ->
@@ -95,11 +95,12 @@ defmodule Fester.DBIndexer do
     %{
       "id" => tx_id,
       "inputs" => inputs,
-      "outputs" => outputs
+      "outputs" => outputs,
+      "cbor" => cbor
     } = transaction
 
     with :ok <- process_transaction_inputs(slot, inputs),
-         :ok <- process_transaction_outputs(slot, outputs, tx_id) do
+         :ok <- process_transaction_outputs(slot, outputs, tx_id, cbor) do
       :ok
     else
       {:error, reason} ->
@@ -139,7 +140,7 @@ defmodule Fester.DBIndexer do
     :ok
   end
 
-  defp process_transaction_outputs(slot, outputs, tx_id) do
+  defp process_transaction_outputs(slot, outputs, tx_id, cbor) do
     utxo_attrs_list =
       outputs
       |> Enum.with_index()
@@ -151,6 +152,7 @@ defmodule Fester.DBIndexer do
           utxo_ref: output_ref,
           address: address,
           value: value,
+          txout_cbor: cbor,
           created_at_slot: slot
         }
       end)
